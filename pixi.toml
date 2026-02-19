@@ -1,0 +1,27 @@
+[project]
+name = "parallax"
+version = "0.1.0"
+description = "Scientific augmentation tool for reproducible, hypothesis-driven science with agentic AI"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+
+[dependencies]
+python = ">=3.12"
+
+[pypi-dependencies]
+parallax = { path = ".", editable = true }
+
+[tasks]
+test = "pytest"
+lint = "ruff check src/ tests/"
+format = "ruff format src/ tests/"
+typecheck = "mypy --strict src/parallax"
+check = { depends-on = ["lint", "typecheck", "test"] }
+
+[feature.dev.dependencies]
+pytest = ">=8"
+mypy = ">=1.10"
+ruff = ">=0.8"
+
+[environments]
+default = { features = ["dev"], solve-group = "default" }

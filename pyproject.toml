@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "parallax"
+version = "0.1.0"
+description = "Scientific augmentation tool for reproducible, hypothesis-driven science with agentic AI"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.15",
+]
+
+[project.scripts]
+parallax = "parallax.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/parallax"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
+packages = ["parallax"]
+mypy_path = "src"
+
+[tool.ruff]
+src = ["src"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "SIM", "TCH"]
