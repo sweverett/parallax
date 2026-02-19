@@ -2,11 +2,13 @@
 
 Scientific augmentation tool encoding best practices for reproducible, hypothesis-driven science into agentic AI workflows.
 
-Two perspectives (human + AI) to get a stronger result.
+*True depth requires two lines of sight.*
 
 ## Philosophy
 
-Accelerate excellent science — but no faster than that. AI supplements scientific work, never drives it. See [CONSTITUTION.md](CONSTITUTION.md) for core values.
+Accelerate as fast as is safe, quantifiable, and verifiable — but no faster. Parallax encodes scientific best practices into agentic AI workflows so that speed gains never come at the cost of rigor, reproducibility, or correctness. AI supplements scientific work; it never drives it.
+
+See [CONSTITUTION.md](CONSTITUTION.md) for core values.
 
 ## Architecture
 
@@ -24,7 +26,7 @@ See [VISION.md](docs/VISION.md) for details.
 
 ```
 src/parallax/           # Main package (cli/, core/, db/)
-templates/              # Templates generated for user projects
+templates/              # Source templates (rendered by parallax init)
 tests/                  # pytest
 docs/                   # VISION.md, ROADMAP.md, plans/
 .claude/                # Skills and hooks for development
@@ -32,7 +34,20 @@ docs/                   # VISION.md, ROADMAP.md, plans/
 
 ## Installation
 
-Requires [pixi](https://pixi.sh).
+Requires [pixi](https://pixi.sh). Install via:
+
+```bash
+# macOS / Linux
+curl -fsSL https://pixi.sh/install.sh | bash
+
+# macOS (Homebrew)
+brew install pixi
+
+# Windows
+powershell -c "irm https://pixi.sh/install.ps1 | iex"
+```
+
+Then:
 
 ```bash
 pixi install

@@ -30,7 +30,7 @@ src/parallax/           # Main package
   cli/                  # Typer CLI commands
   core/                 # Hypothesis, state, templates, workflow logic
   db/                   # SQLite models + queries
-templates/              # Templates Parallax generates for user projects
+templates/              # Source templates rendered by parallax init into user projects
 tests/                  # pytest
 docs/                   # VISION.md, ROADMAP.md, plans/
 .claude/skills/         # Claude Code skills for Parallax development
@@ -98,6 +98,12 @@ pixi run check       # all of the above
 - Never skip type hints on function signatures
 - Never add backward-compat shims — just change the code
 - Never create docs/READMEs unless explicitly requested
+
+## Documentation Maintenance
+
+- At the end of every plan, verify README.md and other markdown docs reflect current state
+- If code changes affect documented behavior, update the relevant docs in the same PR
+- @README.md and other key docs should be reviewed before marking any plan complete
 
 ## References
 

@@ -1,17 +1,17 @@
 # Parallax Vision
 
-> Two perspectives (human + AI) to get a stronger result.
+> *True depth requires two lines of sight.*
 
 ## Mission
 
-Parallax is a scientific augmentation tool that encodes best practices for reproducible, hypothesis-driven science into agentic AI workflows. It accelerates excellent science — but no faster than that.
+Parallax is a scientific augmentation tool that encodes best practices for reproducible, hypothesis-driven science into agentic AI workflows. It accelerates science as fast as is safe, quantifiable, and verifiable — but no faster.
 
 Personal science use case. Not enterprise/team tooling (yet).
 
 ## Core Principles
 
 - AI supplements scientific work, never drives it
-- Robust science over fast science
+- Robust science over fast science — accelerate only as fast as is safe, quantifiable, and verifiable
 - Reproducibility is non-negotiable
 - Loud errors over silent failures
 - Negative results are scientifically valuable

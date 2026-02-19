@@ -5,9 +5,9 @@ These are *values*, not procedures. They inform decision-making at every level.
 
 ## Principles
 
-1. **Robust science over fast science.** Accelerate as fast as possible but no faster. Speed is a means, not an end.
+1. **Robust science over fast science.** Accelerate as fast as is safe, quantifiable, and verifiable, but no faster.
 
-2. **NEVER weaken tests to pass.** Loud failure over silent success. If a test fails, the code is wrong or the test expectations need explicit human review — never quietly relax tolerances.
+2. **NEVER weaken tests to pass — unless a human user explicitly instructs it.** Loud failure over silent success. If a test fails, the code is wrong or the test expectations need explicit human review — never quietly relax tolerances.
 
 3. **Hypotheses before implementation.** Think before you code. Formalize what you expect and why before writing the first line.
 
