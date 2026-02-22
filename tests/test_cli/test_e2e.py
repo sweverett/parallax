@@ -48,8 +48,8 @@ class TestE2E:
         assert (tmp_path / "PARALLAX.md").exists()
         assert (tmp_path / "CONSTITUTION.md").exists()
         assert (tmp_path / ".claude" / "settings.json").exists()
-        for skill in ["hypothesis.md", "handoff.md", "audit.md", "experiment.md"]:
-            assert (tmp_path / ".claude" / "skills" / skill).exists()
+        for skill in ["hypothesis", "handoff", "audit", "experiment"]:
+            assert (tmp_path / ".claude" / "skills" / skill / "SKILL.md").exists()
 
         # --- CLAUDE.md content ---
         claude = (tmp_path / "CLAUDE.md").read_text()
@@ -103,8 +103,8 @@ class TestE2E:
         assert "${" not in settings
 
         # --- Skills content ---
-        for skill in ["hypothesis.md", "handoff.md", "audit.md", "experiment.md"]:
-            text = (tmp_path / ".claude" / "skills" / skill).read_text()
+        for skill in ["hypothesis", "handoff", "audit", "experiment"]:
+            text = (tmp_path / ".claude" / "skills" / skill / "SKILL.md").read_text()
             assert "astro-pipeline" in text
             assert "${" not in text
 

@@ -27,7 +27,7 @@ def _load_template(name: str) -> Template:
 
 
 def _load_skill_template(name: str) -> str:
-    ref = _SKILL_TEMPLATES.joinpath(name)
+    ref = _SKILL_TEMPLATES.joinpath(f"{name}.md")
     return ref.read_text(encoding="utf-8")
 
 
@@ -168,7 +168,7 @@ def render_skill(name: str, config: ProjectConfig) -> str:
 # Conflict detection
 # ---------------------------------------------------------------------------
 
-_SKILL_NAMES = ["hypothesis.md", "handoff.md", "audit.md", "experiment.md"]
+_SKILL_NAMES = ["hypothesis", "handoff", "audit", "experiment"]
 _HOOK_NAMES = ["test_guard.py", "lint_check.py", "stop_check.py"]
 
 
@@ -188,7 +188,7 @@ def _output_paths(
             paths.append(target / ".claude" / "hooks" / h)
     if config.generate_skills:
         for s in _SKILL_NAMES:
-            paths.append(target / ".claude" / "skills" / s)
+            paths.append(target / ".claude" / "skills" / s / "SKILL.md")
     return paths
 
 
@@ -257,9 +257,12 @@ def render_project(
         # Skills
         if config.generate_skills:
             skills_dir = tmp / ".claude" / "skills"
-            skills_dir.mkdir(parents=True, exist_ok=True)
             for skill_name in _SKILL_NAMES:
-                files[skills_dir / skill_name] = render_skill(skill_name, config)
+                skill_subdir = skills_dir / skill_name
+                skill_subdir.mkdir(parents=True, exist_ok=True)
+                files[skill_subdir / "SKILL.md"] = render_skill(
+                    skill_name, config
+                )
 
         # Write all to temp
         for path, content in files.items():

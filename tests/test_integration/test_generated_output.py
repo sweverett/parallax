@@ -23,10 +23,10 @@ class TestGeneratedOutput:
             ".claude/hooks/test_guard.py",
             ".claude/hooks/lint_check.py",
             ".claude/hooks/stop_check.py",
-            ".claude/skills/hypothesis.md",
-            ".claude/skills/handoff.md",
-            ".claude/skills/audit.md",
-            ".claude/skills/experiment.md",
+            ".claude/skills/hypothesis/SKILL.md",
+            ".claude/skills/handoff/SKILL.md",
+            ".claude/skills/audit/SKILL.md",
+            ".claude/skills/experiment/SKILL.md",
         }
         assert expected == names
 
@@ -92,7 +92,7 @@ class TestGeneratedOutput:
         target = Path(str(tmp_path))
         render_project(make_config(), target)
         skills_dir = target / ".claude" / "skills"
-        for skill_file in skills_dir.glob("*.md"):
+        for skill_file in skills_dir.glob("*/SKILL.md"):
             content = skill_file.read_text(encoding="utf-8")
             assert "When to Use" in content, (
                 f"Missing 'When to Use' in {skill_file.name}"

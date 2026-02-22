@@ -1,3 +1,9 @@
+---
+name: audit
+description: Structured audit of ${project_name}. Run periodically or before major milestones.
+disable-model-invocation: true
+---
+
 # /audit -- Project Audit
 
 > Structured audit of ${project_name}.

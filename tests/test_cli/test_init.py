@@ -44,7 +44,7 @@ class TestInitCommand:
         assert (tmp_path / "PARALLAX.md").exists()
         assert (tmp_path / "CONSTITUTION.md").exists()
         assert (tmp_path / ".claude" / "settings.json").exists()
-        assert (tmp_path / ".claude" / "skills" / "hypothesis.md").exists()
+        assert (tmp_path / ".claude" / "skills" / "hypothesis" / "SKILL.md").exists()
         assert (tmp_path / ".claude" / "hooks" / "test_guard.py").exists()
         assert (tmp_path / ".claude" / "hooks" / "lint_check.py").exists()
         assert (tmp_path / ".claude" / "hooks" / "stop_check.py").exists()

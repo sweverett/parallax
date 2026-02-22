@@ -148,12 +148,12 @@ class TestRenderSettingsJson:
 
 class TestRenderSkill:
     def test_hypothesis(self) -> None:
-        out = render_skill("hypothesis.md", make_config())
+        out = render_skill("hypothesis", make_config())
         assert "test-project" in out
         assert "/hypothesis" in out
 
     def test_all_skills_render(self) -> None:
-        for name in ["hypothesis.md", "handoff.md", "audit.md", "experiment.md"]:
+        for name in ["hypothesis", "handoff", "audit", "experiment"]:
             out = render_skill(name, make_config())
             assert "test-project" in out
             assert "${" not in out
@@ -195,15 +195,15 @@ class TestRenderProject:
         assert ".claude/hooks/test_guard.py" in names
         assert ".claude/hooks/lint_check.py" in names
         assert ".claude/hooks/stop_check.py" in names
-        assert ".claude/skills/hypothesis.md" in names
-        assert ".claude/skills/handoff.md" in names
-        assert ".claude/skills/audit.md" in names
-        assert ".claude/skills/experiment.md" in names
+        assert ".claude/skills/hypothesis/SKILL.md" in names
+        assert ".claude/skills/handoff/SKILL.md" in names
+        assert ".claude/skills/audit/SKILL.md" in names
+        assert ".claude/skills/experiment/SKILL.md" in names
 
     def test_no_skills_when_disabled(self, tmp_path: Path) -> None:
         written = render_project(make_config(generate_skills=False), tmp_path)
-        names = {p.name for p in written}
-        assert "hypothesis.md" not in names
+        names = {p.relative_to(tmp_path).as_posix() for p in written}
+        assert not any("skills/" in n for n in names)
 
     def test_no_hooks_when_disabled(self, tmp_path: Path) -> None:
         written = render_project(make_config(generate_hooks=False), tmp_path)

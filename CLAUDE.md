@@ -39,7 +39,7 @@ src/parallax/           # Main package
 tests/                  # pytest (mirrors src structure)
 docs/                   # VISION.md, ROADMAP.md, plans/
 .claude/hooks/          # Hook enforcement scripts for Parallax development
-.claude/skills/         # Claude Code skills for Parallax development
+.claude/skills/         # Claude Code skills (each = subdirectory with SKILL.md)
 .claude/settings.json   # Claude Code hook configuration
 ```
 
@@ -113,11 +113,25 @@ pixi run check       # all of the above
 
 ## Session Continuity
 
-Session summaries live in `docs/sessions/`, named `YYYY-MM-DD_short-description.md`.
+Three memory types, each with a distinct role:
 
-- **New sessions:** read the latest file in `docs/sessions/` first to pick up context.
-- **Ending sessions:** write a summary before closing. Use the format in `docs/sessions/` (what was done, key decisions, current state, next steps, relevant files).
+| Type | Where | What |
+|---|---|---|
+| **Procedural** | `CLAUDE.md` | Rules, conventions, workflows — prescriptive, version-controlled |
+| **Semantic** | `MEMORY.md` | Facts, patterns, gotchas — learned through experience, auto-loaded |
+| **Episodic** | `docs/sessions/` | Events, decisions, next steps — temporal, append-only |
+
+Boundary: instructions → CLAUDE.md. Learned knowledge not in CLAUDE.md → MEMORY.md. What happened this session → session file.
+
+### Episodic Memory (session files)
+Session summaries: `docs/sessions/YYYY-MM-DD_short-description.md`.
+- **New sessions:** read the 3 most recent files. Most recent is primary; older ones provide trajectory.
+- **Ending sessions:** write a summary before closing. Use existing format.
 - Multiple sessions per day: append `_2` suffix.
+
+### Semantic Memory (MEMORY.md)
+Claude Code's auto-loaded MEMORY.md. Updated during `/handoff` when stable patterns emerge.
+- Rule of thumb: if useful 5+ sessions from now and not already a CLAUDE.md rule → MEMORY.md
 
 ## References
 

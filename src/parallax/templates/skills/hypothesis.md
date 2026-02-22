@@ -1,3 +1,8 @@
+---
+name: hypothesis
+description: Guides hypothesis-driven investigation for ${project_name}. Invoke before starting any investigation, feature, or experiment.
+---
+
 # /hypothesis -- Hypothesis Workflow
 
 > Guides hypothesis-driven investigation for ${project_name}.

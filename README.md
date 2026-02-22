@@ -36,7 +36,7 @@ src/parallax/           # Main package
   templates/            # string.Template files for init output
 tests/                  # pytest (mirrors src structure)
 docs/                   # VISION.md, ROADMAP.md, plans/
-.claude/                # Skills and hooks for development
+.claude/                # Skills (skill-name/SKILL.md) and hooks for development
 ```
 
 ## Installation
