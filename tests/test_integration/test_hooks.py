@@ -32,24 +32,28 @@ def _run_hook(hook_name: str, stdin_json: str) -> subprocess.CompletedProcess[st
 
 
 def _edit_payload(file_path: str, old_string: str, new_string: str) -> str:
-    return json.dumps({
-        "tool_name": "Edit",
-        "tool_input": {
-            "file_path": file_path,
-            "old_string": old_string,
-            "new_string": new_string,
-        },
-    })
+    return json.dumps(
+        {
+            "tool_name": "Edit",
+            "tool_input": {
+                "file_path": file_path,
+                "old_string": old_string,
+                "new_string": new_string,
+            },
+        }
+    )
 
 
 def _write_payload(file_path: str, content: str) -> str:
-    return json.dumps({
-        "tool_name": "Write",
-        "tool_input": {
-            "file_path": file_path,
-            "content": content,
-        },
-    })
+    return json.dumps(
+        {
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": file_path,
+                "content": content,
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

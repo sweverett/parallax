@@ -15,6 +15,7 @@ parallax = { path = ".", editable = true }
 test = "pytest"
 lint = "ruff check src/ tests/"
 format = "ruff format src/ tests/"
+format-check = "ruff format --check src/ tests/"
 typecheck = "mypy --strict src/parallax"
 check = { depends-on = ["lint", "typecheck", "test"] }
 

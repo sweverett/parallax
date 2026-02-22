@@ -260,9 +260,7 @@ def render_project(
             for skill_name in _SKILL_NAMES:
                 skill_subdir = skills_dir / skill_name
                 skill_subdir.mkdir(parents=True, exist_ok=True)
-                files[skill_subdir / "SKILL.md"] = render_skill(
-                    skill_name, config
-                )
+                files[skill_subdir / "SKILL.md"] = render_skill(skill_name, config)
 
         # Write all to temp
         for path, content in files.items():

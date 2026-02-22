@@ -20,7 +20,7 @@ jobs:
         run: pixi run lint
 
       - name: Format check
-        run: pixi run format -- --check
+        run: pixi run format-check
 
       - name: Type check
         run: pixi run typecheck

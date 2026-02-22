@@ -84,7 +84,7 @@ class TestGeneratedOutput:
         hooks_dir = target / ".claude" / "hooks"
         for py_file in hooks_dir.glob("*.py"):
             source = py_file.read_text(encoding="utf-8")
-            assert 'if __name__' in source, f"No __main__ guard in {py_file.name}"
+            assert "if __name__" in source, f"No __main__ guard in {py_file.name}"
 
     def test_skill_files_have_structure(self, tmp_path: object) -> None:
         from pathlib import Path
