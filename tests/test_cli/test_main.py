@@ -7,13 +7,18 @@ from parallax.cli import app
 runner = CliRunner()
 
 
-def test_no_args_shows_help() -> None:
+def test_no_args_shows_usage() -> None:
     result = runner.invoke(app, [])
-    assert result.exit_code == 0
-    assert "parallax" in result.output.lower()
+    # Typer multi-command app returns 2 with usage info
+    assert result.exit_code == 2
+    assert "Usage" in result.output
 
 
-def test_init_not_implemented() -> None:
-    result = runner.invoke(app, ["init"])
-    assert result.exit_code == 1
-    assert "not yet implemented" in result.output
+def test_init_shows_in_help() -> None:
+    result = runner.invoke(app, ["--help"])
+    assert "init" in result.output
+
+
+def test_refine_shows_in_help() -> None:
+    result = runner.invoke(app, ["--help"])
+    assert "refine" in result.output

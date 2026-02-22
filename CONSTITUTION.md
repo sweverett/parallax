@@ -24,3 +24,5 @@ These are *values*, not procedures. They inform decision-making at every level.
 9. **Transparency in methodology.** All assumptions, approximations, and limitations must be documented. Hidden assumptions are hidden bugs.
 
 10. **Minimal sufficient complexity.** Add complexity only when the science demands it. Simpler models, simpler code, simpler workflows — until they're insufficient.
+
+11. **Refactor duplication on sight.** When you spot duplicated logic, consolidate it. Two copies is a coincidence; three is a pattern that needs a shared implementation.

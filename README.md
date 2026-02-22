@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="parallax_logo.png" alt="Parallax" width="200">
+</p>
+
 # Parallax
 
 Scientific augmentation tool encoding best practices for reproducible, hypothesis-driven science into agentic AI workflows.
@@ -25,9 +29,12 @@ See [VISION.md](docs/VISION.md) for details.
 ## Repo Structure
 
 ```
-src/parallax/           # Main package (cli/, core/, db/)
-templates/              # Source templates (rendered by parallax init)
-tests/                  # pytest
+src/parallax/           # Main package
+  cli/                  # Typer CLI (init, refine)
+  core/                 # Config, interview, renderer
+  db/                   # SQLite models (Layer 2)
+  templates/            # string.Template files for init output
+tests/                  # pytest (mirrors src structure)
 docs/                   # VISION.md, ROADMAP.md, plans/
 .claude/                # Skills and hooks for development
 ```
@@ -63,20 +70,46 @@ pixi run typecheck   # mypy --strict
 pixi run check       # all of the above
 ```
 
+## Usage
+
+```bash
+# Initialize a new Parallax-managed project
+parallax init
+
+# With options
+parallax init -t /path/to/project   # target directory
+parallax init -y                     # accept defaults, skip optional
+parallax init -f                     # overwrite existing files
+
+# Post-init refinement
+parallax refine                      # print refinement instructions
+parallax refine --done               # strip refinement comment blocks
+```
+
+`parallax init` runs a structured interview generating:
+- **CLAUDE.md** -- project-specific AI agent guide
+- **PARALLAX.md** -- scientific workflow rules
+- **CONSTITUTION.md** -- core scientific principles
+- **.claude/skills/** -- hypothesis, handoff, audit, experiment skills
+- **.claude/hooks/** -- test guard, lint check, stop check enforcement scripts
+- **.claude/settings.json** -- hook configuration referencing scripts above
+
 ## Current Status
 
-Project bootstrap complete. Layer 1 (Convention System) in active development.
+Layer 1 (Convention System) functional. `parallax init`, `parallax refine`, hook enforcement, and skills all implemented.
 
 What exists:
-- Project skeleton with CLI entry point
-- CI pipeline (ruff, mypy, pytest)
-- Foundation docs (VISION, ROADMAP, CONSTITUTION)
+- `parallax init`: structured interview + template rendering
+- `parallax refine`: post-init refinement workflow
+- Hook enforcement: test guard (blocks test weakening), lint check (ruff feedback), stop check (uncommitted work reminder)
+- Full skill definitions: /hypothesis, /handoff, /audit, /experiment
+- CI pipeline (ruff, mypy --strict, pytest)
+- Integration test suite validating generated output
 
 What's next:
-- `parallax init` structured interview
-- Claude Code skills (`/hypothesis`, `/handoff`, `/audit`, `/experiment`)
-- Hook scripts for test protection, auto-doc, lint/format
-- Template files for user projects
+- Layer 2: SQLite hypothesis lifecycle, git worktrees
+- Template versioning / migration
+- CI enhancements (semantic version validation, doc staleness check)
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full backlog.
 

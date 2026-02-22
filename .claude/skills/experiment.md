@@ -1,19 +1,48 @@
-# /experiment — Create Experiment Manifest
+# /experiment -- Create Experiment Manifest
 
-> Create a new experiment from template.
+> Scaffold a new experiment for Parallax development.
 
-## Fields
+## When to Use
 
-- Name
-- Hypothesis reference
-- Description
-- Expected outcome
-- Test plan
-- Environment/version tags
-- Status (proposed | active | concluded)
+Invoke `/experiment` when starting a new experiment or computational investigation on the Parallax codebase.
 
-## Usage
+## Protocol
 
-Invoke with `/experiment` to scaffold a new experiment.
+1. Ask the human for the experiment name and linked hypothesis.
+2. Fill out the manifest template below.
+3. Create the manifest file in the appropriate location.
 
-TODO: Implement template generation from YAML manifest.
+## Manifest Template
+
+```markdown
+## Experiment: [name]
+
+**Hypothesis:** [reference to hypothesis being tested]
+**Description:** [what will be done]
+**Expected outcome:** [prediction based on hypothesis]
+
+**Test plan:**
+1. [step-by-step procedure]
+
+**Environment:**
+- Code version: [git ref]
+- Config: [relevant settings]
+- Data: [input data description/location]
+- Python: [version]
+- pixi lockfile: [hash or date]
+
+**Status:** proposed | active | concluded
+
+**Result:** [filled after conclusion]
+- Outcome: supported | refuted | inconclusive
+- Evidence: [data, plots, metrics]
+- Notes: [observations, surprises, caveats]
+```
+
+## Rules
+
+- Every experiment must link to a hypothesis. No undirected exploration without a stated expectation.
+- Record environment details sufficient for exact reproduction (git ref, pixi lock state, Python version).
+- Document the result regardless of outcome.
+- If the experiment reveals something unexpected, create a new hypothesis.
+- Reference @CONSTITUTION.md principle 4 (reproducibility) when recording environment.

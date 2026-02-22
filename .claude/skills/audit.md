@@ -1,17 +1,52 @@
-# /audit — Project Audit
+# /audit -- Project Audit
 
-> Manual-trigger audit of the Parallax codebase.
+> Structured audit of the Parallax codebase.
+
+## When to Use
+
+Invoke `/audit` periodically or before major milestones to check project health.
 
 ## Checks
 
-1. Code review: bugs, concerns, anti-patterns
-2. Test gaps: untested features, weak assertions
-3. Doc staleness: do docs match current code?
-4. Dependency health: outdated/vulnerable deps
-5. Architecture concerns: does code match intended design?
+Perform each check and report findings:
 
-## Output
+1. **Code review:** Bugs, concerns, anti-patterns, security issues in `src/parallax/`.
+2. **Test gaps:** Untested features, weak assertions, missing edge cases in `tests/`.
+3. **Doc staleness:** Do README.md, CLAUDE.md, ROADMAP.md, VISION.md match current code? Are references valid?
+4. **Dependency health:** Outdated or vulnerable dependencies in pyproject.toml/pixi.toml.
+5. **Architecture:** Does code match the 3-layer design in VISION.md? Any drift?
+6. **Scientific rigor:** Are hypotheses documented? Results reproducible? Assumptions stated?
 
-Bulleted findings organized by severity (critical > warning > info).
+### Parallax-Specific Checks
 
-TODO: Implement automated checks and structured output.
+- ROADMAP.md: are completed items checked off? Are open questions still relevant?
+- README.md: does "Current Status" section reflect reality?
+- `pixi run check` passes cleanly (lint, typecheck, test).
+- Session summaries in `docs/sessions/` are up to date.
+- No TODO markers in production code or skills.
+
+## Output Format
+
+```markdown
+## Audit: [date]
+
+### Critical
+- [findings that need immediate attention]
+
+### Warning
+- [findings that should be addressed soon]
+
+### Info
+- [observations and suggestions]
+
+### Summary
+[1-2 sentence overall assessment]
+```
+
+## Rules
+
+- Check @CONSTITUTION.md principles against actual practice.
+- Flag any tests that appear to have relaxed tolerances.
+- Verify reproducibility claims (are environments locked? versions pinned?).
+- Be specific: include file paths, line numbers, concrete evidence.
+- Run `pixi run check` as part of the audit.

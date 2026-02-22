@@ -1,18 +1,37 @@
-# /hypothesis — Hypothesis Workflow
+# /hypothesis -- Hypothesis Workflow
 
-> Skill for Parallax development. Guides hypothesis-driven investigation.
+> Guides hypothesis-driven investigation for Parallax development.
 
-## Steps
+## When to Use
 
-1. Ask human for their hypothesis first
-2. AI generates N alternative hypotheses
-3. Human ranks/prioritizes
-4. Design tests for top hypothesis
-5. Run tests, collect results
-6. Conclude: supported, refuted, or inconclusive (with evidence)
+Invoke `/hypothesis` before starting any new investigation, feature, bug fix, or experiment on the Parallax codebase.
 
-## Usage
+## Protocol
 
-Invoke with `/hypothesis` when starting a new investigation.
+1. **State your hypothesis.** What do you expect, and why? Be specific and falsifiable.
+2. **AI generates alternatives.** Propose 2-3 alternative hypotheses for consideration.
+3. **Human selects.** Pick the hypothesis to test (may be the original or an alternative).
+4. **Define success/failure criteria.** What measurable outcomes support or refute the hypothesis?
+5. **Design and run the test.** Implement the experiment, collect results.
+6. **Record the conclusion.** Supported, refuted, or inconclusive -- with evidence. Document regardless of outcome.
 
-TODO: Implement structured prompts and templates.
+## Output Format
+
+```markdown
+## Hypothesis: [descriptive name]
+
+**Statement:** [specific, falsifiable claim]
+**Rationale:** [why you expect this]
+**Success criteria:** [measurable outcome if supported]
+**Failure criteria:** [measurable outcome if refuted]
+**Status:** proposed | testing | supported | refuted | inconclusive
+**Evidence:** [results, data, references]
+```
+
+## Rules
+
+- Never skip the hypothesis step. No implementation without a stated expectation.
+- Negative results are valuable. Document them with equal rigor.
+- If inconclusive, state what additional evidence would resolve it.
+- Reference @CONSTITUTION.md principles 1, 3, 6 when documenting.
+- Record hypotheses in session summaries (docs/sessions/) for continuity.

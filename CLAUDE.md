@@ -27,14 +27,20 @@ See [VISION.md](docs/VISION.md) for full architecture. See [ROADMAP.md](docs/ROA
 
 ```
 src/parallax/           # Main package
-  cli/                  # Typer CLI commands
-  core/                 # Hypothesis, state, templates, workflow logic
-  db/                   # SQLite models + queries
-templates/              # Source templates rendered by parallax init into user projects
-tests/                  # pytest
+  cli/                  # Typer CLI commands (init, refine)
+  core/                 # Config, interview, renderer, workflow logic
+    config.py           # ProjectConfig dataclass
+    interview.py        # Structured init interview
+    renderer.py         # Template rendering + file generation
+  db/                   # SQLite models + queries (Layer 2)
+  templates/            # string.Template files for parallax init output
+    hooks/              # Hook script templates (test_guard, lint_check, stop_check)
+    skills/             # Skill templates (hypothesis, handoff, audit, experiment)
+tests/                  # pytest (mirrors src structure)
 docs/                   # VISION.md, ROADMAP.md, plans/
+.claude/hooks/          # Hook enforcement scripts for Parallax development
 .claude/skills/         # Claude Code skills for Parallax development
-.claude/settings.json   # Claude Code hooks
+.claude/settings.json   # Claude Code hook configuration
 ```
 
 ## Writing Style
@@ -104,6 +110,14 @@ pixi run check       # all of the above
 - At the end of every plan, verify README.md and other markdown docs reflect current state
 - If code changes affect documented behavior, update the relevant docs in the same PR
 - @README.md and other key docs should be reviewed before marking any plan complete
+
+## Session Continuity
+
+Session summaries live in `docs/sessions/`, named `YYYY-MM-DD_short-description.md`.
+
+- **New sessions:** read the latest file in `docs/sessions/` first to pick up context.
+- **Ending sessions:** write a summary before closing. Use the format in `docs/sessions/` (what was done, key decisions, current state, next steps, relevant files).
+- Multiple sessions per day: append `_2` suffix.
 
 ## References
 

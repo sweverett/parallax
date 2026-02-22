@@ -4,15 +4,15 @@ Living document tracking decisions, open questions, and future work.
 
 ## Current Status
 
-**Layer 1 (Convention System)** — in progress. Project skeleton, docs, CI bootstrapped.
+**Layer 1 (Convention System)** — functional. `parallax init` interview + template rendering implemented. `parallax refine` implemented. Hook enforcement scripts implemented. Skills fully specified.
 
 ## Known Gaps (Post-Bootstrap Design Work)
 
-### 1. PARALLAX.md template content
-Skeleton workflow steps, handoff format, experiment manifest structure need design. What fields are required vs optional? How prescriptive vs flexible?
+### ~~1. PARALLAX.md template content~~ (resolved)
+Implemented in template with hypothesis protocol, experiment manifest, handoff format.
 
-### 2. Structured interview questions
-`parallax init` is the centerpiece of Layer 1 but the question set is undefined. Needs its own design session: question ordering, defaults, validation, what gets generated from answers.
+### ~~2. Structured interview questions~~ (resolved)
+`parallax init` interview implemented: 2-phase (core + detailed), editor-based multi-line input, defaults, validation.
 
 ### 3. Template versioning/migration
 When Parallax ships new templates, how do existing projects upgrade? Merge? Override? Side-by-side? Need a migration strategy before users depend on generated configs.
@@ -37,10 +37,10 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 
 ## Layer 1 Remaining Work
 
-- [ ] `parallax init` interview design + implementation
-- [ ] Claude Code skills: `/hypothesis`, `/handoff`, `/audit`, `/experiment`
-- [ ] Hook scripts: test protection, auto-doc check, lint/format, context reinforcement
-- [ ] Template files: PARALLAX.md, experiment manifest, hypothesis doc, agent summary
+- [x] `parallax init` interview design + implementation
+- [x] Template files: PARALLAX.md, CLAUDE.md, CONSTITUTION.md, settings.json, skills
+- [x] Claude Code skills: `/hypothesis`, `/handoff`, `/audit`, `/experiment`
+- [x] Hook scripts: test protection, lint check, stop check
 - [ ] CI enhancements: semantic version validation, doc staleness check
 
 ## Layer 2 Features (MVP-beta)
@@ -66,6 +66,7 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 - [ ] Multi-language support
 - [ ] Voice interface
 - [ ] Fun scientist on startup
+- [ ] cmux / terminal multiplexer integration ([plan](plans/002_cmux_integration.md))
 
 ## Deferred Decisions
 
@@ -73,3 +74,4 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 - **Team features**: Personal use only for MVP. Multi-user/org support is v2+.
 - **Container strategy**: pixi for now. Evaluate Docker/Apptainer for HPC reproducibility in Layer 2/3.
 - **Notebook format**: Jupytext (markdown-based, diffable). Evaluate when Layer 2 auto-docs land.
+- **Terminal multiplexer docs**: Add tmux/cmux usage tutorial to docs/ when multiplexer integration lands.

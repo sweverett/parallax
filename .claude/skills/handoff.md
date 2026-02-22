@@ -1,19 +1,47 @@
-# /handoff — Agent Handoff Summary
+# /handoff -- Agent Handoff Summary
 
-> Generate a structured summary for passing context to the next agent/session.
+> Generate a structured handoff summary for Parallax development sessions.
+
+## When to Use
+
+Invoke `/handoff` at the end of a work session, before context gets too long, or when passing work to another agent/human.
+
+## Instructions
+
+1. Write the handoff summary to `docs/sessions/YYYY-MM-DD_short-description.md` (use today's date, append `_2` if file exists).
+2. Include all sections from the output format below.
+3. Be concise but complete -- another agent should continue without re-investigating.
 
 ## Output Format
 
-- Problem statement (1-2 sentences)
-- What was investigated/attempted
-- Key findings (bulleted)
-- Current state (what works, what doesn't)
-- Recommended next steps
-- Open questions
-- Relevant files/paths
+```markdown
+# Session: [date] -- [short description]
 
-## Usage
+## What Was Done
+- [bulleted list of completed work]
 
-Invoke with `/handoff` at the end of a work session or before context gets too long.
+## Key Decisions
+- [architectural choices, design tradeoffs, rejected alternatives]
 
-TODO: Implement structured template generation.
+## Current State
+- What works: [list]
+- What doesn't: [list]
+- Test status: [pixi run check result summary]
+
+## Next Steps
+1. [prioritized list]
+
+## Open Questions
+- [unresolved items needing human input]
+
+## Relevant Files
+- [file paths with brief descriptions of changes]
+```
+
+## Rules
+
+- Include file paths for all code that was touched or is relevant.
+- Flag any known issues or risks explicitly.
+- If a hypothesis was being tested, include its current status.
+- Run `pixi run check` before writing the summary to capture current state.
+- Verify ROADMAP.md and README.md are current before finalizing.
