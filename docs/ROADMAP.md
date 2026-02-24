@@ -39,14 +39,19 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 
 - [x] `parallax init` interview design + implementation
 - [x] Template files: PARALLAX.md, CLAUDE.md, CONSTITUTION.md, settings.json, skills
-- [x] Claude Code skills: `/hypothesis`, `/handoff`, `/audit`, `/experiment`
+- [x] Claude Code skills: `/hypothesis`, `/handoff`, `/audit`, `/experiment`, `/session-start`
 - [x] Hook scripts: test protection, lint check, stop check
+- [x] Custom agent definitions: hypothesis-explorer, experiment-runner, literature-reviewer, result-validator
+- [x] Token tier system: model selection per agent (pro/5x/20x/api)
+- [x] Auto-refinement via Claude CLI (`parallax init` invokes `claude -p`)
+- [x] `parallax config set token-tier` for post-init changes
+- [x] `memory: project` on hypothesis + experiment skills
 - [ ] CI enhancements: semantic version validation, doc staleness check
 
 ## Layer 2 Features (MVP-beta)
 
-- [ ] SQLite schema for hypothesis lifecycle + test results
-- [ ] Git worktree integration for parallel hypotheses
+- [ ] SQLite schema for hypothesis lifecycle + test results (skill `memory: project` as short-term proxy)
+- [ ] Git worktree integration for parallel hypotheses (Claude Code handles plumbing natively; Parallax defines workflows)
 - [ ] Agent handoff summary system
 - [ ] Semantic versioning automation
 - [ ] Conversation/session logging

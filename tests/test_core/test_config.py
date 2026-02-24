@@ -32,11 +32,13 @@ def test_all_fields_present() -> None:
         "branch_prefix",
         "generate_skills",
         "generate_hooks",
+        "token_tier",
         "editor",
         "science_requirements",
         "preferred_patterns",
         "outlawed_patterns",
         "key_libraries",
+        "custom_agent_description",
     }
     assert set(cfg.__dataclass_fields__) == expected_fields
 
@@ -98,3 +100,20 @@ class TestValidation:
     def test_all_valid_test_frameworks(self, tf: str) -> None:
         cfg = make_config(test_framework=tf)
         assert cfg.test_framework == tf
+
+    def test_invalid_token_tier_raises(self) -> None:
+        with pytest.raises(ValueError, match="token_tier"):
+            make_config(token_tier="free")
+
+    @pytest.mark.parametrize("tier", ["pro", "5x", "20x", "api"])
+    def test_all_valid_token_tiers(self, tier: str) -> None:
+        cfg = make_config(token_tier=tier)
+        assert cfg.token_tier == tier
+
+    def test_default_token_tier(self) -> None:
+        cfg = make_config()
+        assert cfg.token_tier == "pro"
+
+    def test_custom_agent_description_field(self) -> None:
+        cfg = make_config(custom_agent_description="my custom agent")
+        assert cfg.custom_agent_description == "my custom agent"

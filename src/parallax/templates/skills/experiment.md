@@ -1,6 +1,7 @@
 ---
 name: experiment
 description: Scaffold a new experiment for ${project_name}. Creates a structured manifest linked to a hypothesis.
+memory: project
 ---
 
 # /experiment -- Create Experiment Manifest

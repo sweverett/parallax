@@ -30,18 +30,26 @@ See [VISION.md](docs/VISION.md) for details.
 
 ```
 src/parallax/           # Main package
-  cli/                  # Typer CLI (init, refine)
-  core/                 # Config, interview, renderer
+  cli/                  # Typer CLI (init, refine, config)
+  core/                 # Config, interview, renderer, refiner
   db/                   # SQLite models (Layer 2)
   templates/            # string.Template files for init output
+    agents/             # Agent definition templates
+    skills/             # Skill templates
+    hooks/              # Hook script templates
 tests/                  # pytest (mirrors src structure)
 docs/                   # VISION.md, ROADMAP.md, plans/
 .claude/                # Skills (skill-name/SKILL.md) and hooks for development
 ```
 
+## Prerequisites
+
+- [pixi](https://pixi.sh) -- package/environment management
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) -- required for auto-refinement during `parallax init`
+
 ## Installation
 
-Requires [pixi](https://pixi.sh). Install via:
+Install pixi:
 
 ```bash
 # macOS / Linux
@@ -80,29 +88,44 @@ parallax init
 parallax init -t /path/to/project   # target directory
 parallax init -y                     # accept defaults, skip optional
 parallax init -f                     # overwrite existing files
+parallax init --token-tier 5x        # set model tier for agents
+parallax init --skip-refine          # skip auto-refinement
 
 # Post-init refinement
 parallax refine                      # print refinement instructions
 parallax refine --done               # strip refinement comment blocks
+
+# Post-init config changes
+parallax config set token-tier 5x    # update agent model selection
 ```
 
 `parallax init` runs a structured interview generating:
 - **CLAUDE.md** -- project-specific AI agent guide
 - **PARALLAX.md** -- scientific workflow rules
 - **CONSTITUTION.md** -- core scientific principles
-- **.claude/skills/** -- hypothesis, handoff, audit, experiment skills
+- **.claude/skills/** -- hypothesis, handoff, audit, experiment, session-start skills
+- **.claude/agents/** -- hypothesis-explorer, experiment-runner, literature-reviewer, result-validator agents
 - **.claude/hooks/** -- test guard, lint check, stop check enforcement scripts
 - **.claude/settings.json** -- hook configuration referencing scripts above
+
+Token tiers control agent model selection:
+- **pro** (default) -- conservative: haiku exploration, sonnet validation
+- **5x** -- balanced: opus exploration, sonnet runner
+- **20x** -- generous: opus for most tasks
+- **api** -- unconstrained: opus everywhere
 
 ## Current Status
 
 Layer 1 (Convention System) functional. `parallax init`, `parallax refine`, hook enforcement, and skills all implemented.
 
 What exists:
-- `parallax init`: structured interview + template rendering
+- `parallax init`: structured interview + template rendering + auto-refinement
 - `parallax refine`: post-init refinement workflow
+- `parallax config`: post-init configuration changes (token tier)
 - Hook enforcement: test guard (blocks test weakening), lint check (ruff feedback), stop check (uncommitted work reminder)
-- Full skill definitions: /hypothesis, /handoff, /audit, /experiment
+- Full skill definitions: /hypothesis, /handoff, /audit, /experiment, /session-start
+- Custom agent definitions: hypothesis-explorer, experiment-runner, literature-reviewer, result-validator
+- Token tier system: model selection per agent based on usage tier (pro/5x/20x/api)
 - CI pipeline (ruff, mypy --strict, pytest)
 - Integration test suite validating generated output
 

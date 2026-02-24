@@ -27,6 +27,11 @@ class TestGeneratedOutput:
             ".claude/skills/handoff/SKILL.md",
             ".claude/skills/audit/SKILL.md",
             ".claude/skills/experiment/SKILL.md",
+            ".claude/skills/session-start/SKILL.md",
+            ".claude/agents/hypothesis-explorer.md",
+            ".claude/agents/experiment-runner.md",
+            ".claude/agents/literature-reviewer.md",
+            ".claude/agents/result-validator.md",
         }
         assert expected == names
 
@@ -109,3 +114,28 @@ class TestGeneratedOutput:
         for name in ["CLAUDE.md", "PARALLAX.md", "CONSTITUTION.md"]:
             content = (target / name).read_text(encoding="utf-8")
             assert "myproject" in content, f"Project name missing from {name}"
+
+    def test_agent_files_have_frontmatter(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        target = Path(str(tmp_path))
+        render_project(make_config(), target)
+        agents_dir = target / ".claude" / "agents"
+        for agent_file in agents_dir.glob("*.md"):
+            content = agent_file.read_text(encoding="utf-8")
+            assert content.startswith("---"), f"No frontmatter in {agent_file.name}"
+            # Must have name, description, model fields
+            assert "name:" in content, f"Missing name in {agent_file.name}"
+            assert "description:" in content, (
+                f"Missing description in {agent_file.name}"
+            )
+            assert "model:" in content, f"Missing model in {agent_file.name}"
+
+    def test_agents_contain_project_name(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        target = Path(str(tmp_path))
+        render_project(make_config(project_name="myproject", domain="genomics"), target)
+        # literature-reviewer has domain substitution
+        lit = (target / ".claude" / "agents" / "literature-reviewer.md").read_text()
+        assert "genomics" in lit

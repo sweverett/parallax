@@ -22,3 +22,8 @@ def test_init_shows_in_help() -> None:
 def test_refine_shows_in_help() -> None:
     result = runner.invoke(app, ["--help"])
     assert "refine" in result.output
+
+
+def test_config_shows_in_help() -> None:
+    result = runner.invoke(app, ["--help"])
+    assert "config" in result.output

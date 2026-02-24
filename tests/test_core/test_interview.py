@@ -35,9 +35,11 @@ class TestRunInterviewYesMode:
         assert cfg.branch_prefix == ""
         assert cfg.generate_skills is True
         assert cfg.generate_hooks is True
+        assert cfg.token_tier == "pro"
         # Phase B skipped
         assert cfg.science_requirements == ""
         assert cfg.preferred_patterns == ""
+        assert cfg.custom_agent_description == ""
 
 
 class TestRunInterviewFull:
@@ -54,6 +56,7 @@ class TestRunInterviewFull:
                 "pixi",
                 "pytest",
                 "",
+                "pro",
             ]
         )
         confirm_responses = iter(
@@ -101,6 +104,7 @@ class TestRunInterviewFull:
                 "pixi",
                 "pytest",
                 "se/",
+                "5x",
             ]
         )
         confirm_responses = iter(
@@ -134,6 +138,26 @@ class TestRunInterviewFull:
         assert cfg.uses_units is True
         assert cfg.uses_jax is True
         assert cfg.branch_prefix == "se/"
+        assert cfg.token_tier == "5x"
+
+    def test_token_tier_override(self) -> None:
+        """CLI --token-tier overrides interview answer."""
+        original_values = ["My project", "genomics"]
+        call_idx = 0
+
+        def fake_prompt(label: str, default: str = "") -> str:
+            nonlocal call_idx
+            val = original_values[call_idx]
+            call_idx += 1
+            return val
+
+        with patch(
+            "parallax.core.interview.typer.prompt",
+            side_effect=fake_prompt,
+        ):
+            cfg = run_interview(yes=True, token_tier_override="20x")
+
+        assert cfg.token_tier == "20x"
 
 
 class TestAskChoice:

@@ -6,8 +6,11 @@ import pytest
 
 from parallax.core.renderer import (
     check_conflicts,
+    model_for_agent,
+    render_agent,
     render_claude_md,
     render_constitution_md,
+    render_custom_agent,
     render_parallax_md,
     render_project,
     render_settings_json,
@@ -153,10 +156,113 @@ class TestRenderSkill:
         assert "/hypothesis" in out
 
     def test_all_skills_render(self) -> None:
-        for name in ["hypothesis", "handoff", "audit", "experiment"]:
+        for name in [
+            "hypothesis",
+            "handoff",
+            "audit",
+            "experiment",
+            "session_start",
+        ]:
             out = render_skill(name, make_config())
             assert "test-project" in out
             assert "${" not in out
+
+    def test_hypothesis_has_memory(self) -> None:
+        out = render_skill("hypothesis", make_config())
+        assert "memory: project" in out
+
+    def test_experiment_has_memory(self) -> None:
+        out = render_skill("experiment", make_config())
+        assert "memory: project" in out
+
+    def test_session_start_render(self) -> None:
+        out = render_skill("session_start", make_config())
+        assert "session-start" in out
+        assert "handoffs" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# Agent rendering
+# ---------------------------------------------------------------------------
+
+
+class TestModelForAgent:
+    def test_pro_tier_models(self) -> None:
+        assert model_for_agent("hypothesis_explorer", "pro") == "haiku"
+        assert model_for_agent("experiment_runner", "pro") == "sonnet"
+        assert model_for_agent("literature_reviewer", "pro") == "haiku"
+        assert model_for_agent("result_validator", "pro") == "sonnet"
+
+    def test_5x_tier_models(self) -> None:
+        assert model_for_agent("hypothesis_explorer", "5x") == "opus"
+        assert model_for_agent("experiment_runner", "5x") == "sonnet"
+        assert model_for_agent("literature_reviewer", "5x") == "sonnet"
+        assert model_for_agent("result_validator", "5x") == "opus"
+
+    def test_api_tier_all_opus(self) -> None:
+        for agent in [
+            "hypothesis_explorer",
+            "experiment_runner",
+            "literature_reviewer",
+            "result_validator",
+        ]:
+            assert model_for_agent(agent, "api") == "opus"
+
+    def test_unknown_agent_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown agent"):
+            model_for_agent("nonexistent", "pro")
+
+    def test_unknown_tier_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown token tier"):
+            model_for_agent("hypothesis_explorer", "free")  # type: ignore[arg-type]
+
+
+class TestRenderAgent:
+    def test_hypothesis_explorer_pro(self) -> None:
+        out = render_agent("hypothesis_explorer", make_config())
+        assert "model: haiku" in out
+        assert "hypothesis-explorer" in out
+        assert "worktree" in out
+        assert "${" not in out
+
+    def test_experiment_runner_5x(self) -> None:
+        out = render_agent("experiment_runner", make_config(token_tier="5x"))
+        assert "model: sonnet" in out
+        assert "experiment-runner" in out
+
+    def test_literature_reviewer_has_domain(self) -> None:
+        out = render_agent("literature_reviewer", make_config(domain="genomics"))
+        assert "genomics" in out
+
+    def test_result_validator_20x(self) -> None:
+        out = render_agent("result_validator", make_config(token_tier="20x"))
+        assert "model: opus" in out
+        assert "result-validator" in out
+
+    def test_all_agents_no_unsubstituted_vars(self) -> None:
+        for name in [
+            "hypothesis_explorer",
+            "experiment_runner",
+            "literature_reviewer",
+            "result_validator",
+        ]:
+            out = render_agent(name, make_config())
+            assert "${" not in out, f"Unsubstituted var in {name}"
+
+
+class TestRenderCustomAgent:
+    def test_basic_render(self) -> None:
+        out = render_custom_agent(
+            make_config(custom_agent_description="validates ETL pipeline outputs")
+        )
+        assert "validates ETL pipeline outputs" in out
+        assert "name: custom" in out
+        assert "test-project" in out
+        assert "${" not in out
+
+    def test_empty_description_still_renders(self) -> None:
+        out = render_custom_agent(make_config(custom_agent_description=""))
+        assert "name: custom" in out
 
 
 # ---------------------------------------------------------------------------
@@ -199,11 +305,18 @@ class TestRenderProject:
         assert ".claude/skills/handoff/SKILL.md" in names
         assert ".claude/skills/audit/SKILL.md" in names
         assert ".claude/skills/experiment/SKILL.md" in names
+        assert ".claude/skills/session-start/SKILL.md" in names
+        # Agent files
+        assert ".claude/agents/hypothesis-explorer.md" in names
+        assert ".claude/agents/experiment-runner.md" in names
+        assert ".claude/agents/literature-reviewer.md" in names
+        assert ".claude/agents/result-validator.md" in names
 
     def test_no_skills_when_disabled(self, tmp_path: Path) -> None:
         written = render_project(make_config(generate_skills=False), tmp_path)
         names = {p.relative_to(tmp_path).as_posix() for p in written}
         assert not any("skills/" in n for n in names)
+        assert not any("agents/" in n for n in names)
 
     def test_no_hooks_when_disabled(self, tmp_path: Path) -> None:
         written = render_project(make_config(generate_hooks=False), tmp_path)
@@ -234,3 +347,30 @@ class TestRenderProject:
         parallax = (tmp_path / "PARALLAX.md").read_text()
         assert "Hypothesis Protocol" in parallax
         assert "${" not in parallax
+
+    def test_agents_have_correct_models_pro(self, tmp_path: Path) -> None:
+        render_project(make_config(token_tier="pro"), tmp_path)
+        explorer = (
+            tmp_path / ".claude" / "agents" / "hypothesis-explorer.md"
+        ).read_text()
+        assert "model: haiku" in explorer
+        runner = (tmp_path / ".claude" / "agents" / "experiment-runner.md").read_text()
+        assert "model: sonnet" in runner
+
+    def test_agents_have_correct_models_api(self, tmp_path: Path) -> None:
+        render_project(make_config(token_tier="api"), tmp_path)
+        agents_dir = tmp_path / ".claude" / "agents"
+        for f in agents_dir.glob("*.md"):
+            assert "model: opus" in f.read_text(), (
+                f"{f.name} should have opus for api tier"
+            )
+
+    def test_custom_agent_generated(self, tmp_path: Path) -> None:
+        render_project(make_config(custom_agent_description="validates data"), tmp_path)
+        custom = (tmp_path / ".claude" / "agents" / "custom.md").read_text()
+        assert "validates data" in custom
+        assert "${" not in custom
+
+    def test_no_custom_agent_when_empty(self, tmp_path: Path) -> None:
+        render_project(make_config(), tmp_path)
+        assert not (tmp_path / ".claude" / "agents" / "custom.md").exists()

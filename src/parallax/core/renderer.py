@@ -10,7 +10,7 @@ from string import Template
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from parallax.core.config import ProjectConfig
+    from parallax.core.config import ProjectConfig, TokenTier
 
 # ---------------------------------------------------------------------------
 # Template loading
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 _TEMPLATES = importlib.resources.files("parallax.templates")
 _SKILL_TEMPLATES = importlib.resources.files("parallax.templates.skills")
 _HOOK_TEMPLATES = importlib.resources.files("parallax.templates.hooks")
+_AGENT_TEMPLATES = importlib.resources.files("parallax.templates.agents")
 
 
 def _load_template(name: str) -> Template:
@@ -33,6 +34,11 @@ def _load_skill_template(name: str) -> str:
 
 def _load_hook_script(name: str) -> str:
     ref = _HOOK_TEMPLATES.joinpath(name)
+    return ref.read_text(encoding="utf-8")
+
+
+def _load_agent_template(name: str) -> str:
+    ref = _AGENT_TEMPLATES.joinpath(f"{name}.md")
     return ref.read_text(encoding="utf-8")
 
 
@@ -165,10 +171,108 @@ def render_skill(name: str, config: ProjectConfig) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Agent rendering
+# ---------------------------------------------------------------------------
+
+# Model selection per (agent, token_tier).
+# Rows: agent template names. Columns: pro, 5x, 20x, api.
+_MODEL_MAP: dict[str, dict[str, str]] = {
+    "hypothesis_explorer": {
+        "pro": "haiku",
+        "5x": "opus",
+        "20x": "opus",
+        "api": "opus",
+    },
+    "experiment_runner": {
+        "pro": "sonnet",
+        "5x": "sonnet",
+        "20x": "opus",
+        "api": "opus",
+    },
+    "literature_reviewer": {
+        "pro": "haiku",
+        "5x": "sonnet",
+        "20x": "opus",
+        "api": "opus",
+    },
+    "result_validator": {
+        "pro": "sonnet",
+        "5x": "opus",
+        "20x": "opus",
+        "api": "opus",
+    },
+}
+
+# Template var name -> agent template name mapping
+_AGENT_MODEL_VARS: dict[str, str] = {
+    "hypothesis_explorer": "explorer_model",
+    "experiment_runner": "runner_model",
+    "literature_reviewer": "reviewer_model",
+    "result_validator": "validator_model",
+}
+
+_AGENT_NAMES = [
+    "hypothesis_explorer",
+    "experiment_runner",
+    "literature_reviewer",
+    "result_validator",
+]
+
+
+def _agent_output_name(template_name: str) -> str:
+    """Convert template name (underscores) to output name (hyphens)."""
+    return template_name.replace("_", "-") + ".md"
+
+
+def model_for_agent(agent_name: str, tier: TokenTier) -> str:
+    """Look up the model string for a given agent and token tier."""
+    agent_models = _MODEL_MAP.get(agent_name)
+    if agent_models is None:
+        msg = f"Unknown agent {agent_name!r}"
+        raise ValueError(msg)
+    model = agent_models.get(tier)
+    if model is None:
+        msg = f"Unknown token tier {tier!r}"
+        raise ValueError(msg)
+    return model
+
+
+def render_agent(name: str, config: ProjectConfig) -> str:
+    """Render an agent template with model and project substitutions."""
+    raw = _load_agent_template(name)
+    model_var = _AGENT_MODEL_VARS[name]
+    model = model_for_agent(name, config.token_tier)
+    return Template(raw).safe_substitute(
+        **{model_var: model},
+        project_name=config.project_name,
+        domain=config.domain,
+    )
+
+
+_CUSTOM_AGENT_TEMPLATE = """\
+---
+name: custom
+description: Custom project-specific agent for ${project_name}.
+model: sonnet
+tools: [Read, Glob, Grep, Edit, Write, Bash]
+---
+${custom_agent_description}
+"""
+
+
+def render_custom_agent(config: ProjectConfig) -> str:
+    """Render a custom agent from user description."""
+    return Template(_CUSTOM_AGENT_TEMPLATE).safe_substitute(
+        project_name=config.project_name,
+        custom_agent_description=config.custom_agent_description.strip(),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Conflict detection
 # ---------------------------------------------------------------------------
 
-_SKILL_NAMES = ["hypothesis", "handoff", "audit", "experiment"]
+_SKILL_NAMES = ["hypothesis", "handoff", "audit", "experiment", "session_start"]
 _HOOK_NAMES = ["test_guard.py", "lint_check.py", "stop_check.py"]
 
 
@@ -188,7 +292,14 @@ def _output_paths(
             paths.append(target / ".claude" / "hooks" / h)
     if config.generate_skills:
         for s in _SKILL_NAMES:
-            paths.append(target / ".claude" / "skills" / s / "SKILL.md")
+            # session_start uses hyphen in output dir name
+            out_name = s.replace("_", "-") if "_" in s else s
+            paths.append(target / ".claude" / "skills" / out_name / "SKILL.md")
+        # Agents are generated alongside skills
+        for a in _AGENT_NAMES:
+            paths.append(target / ".claude" / "agents" / _agent_output_name(a))
+        if config.custom_agent_description:
+            paths.append(target / ".claude" / "agents" / "custom.md")
     return paths
 
 
@@ -258,9 +369,22 @@ def render_project(
         if config.generate_skills:
             skills_dir = tmp / ".claude" / "skills"
             for skill_name in _SKILL_NAMES:
-                skill_subdir = skills_dir / skill_name
+                # session_start uses hyphen in output dir name
+                out_name = (
+                    skill_name.replace("_", "-") if "_" in skill_name else skill_name
+                )
+                skill_subdir = skills_dir / out_name
                 skill_subdir.mkdir(parents=True, exist_ok=True)
                 files[skill_subdir / "SKILL.md"] = render_skill(skill_name, config)
+
+            # Agents (generated alongside skills — agents require skills)
+            agents_dir = tmp / ".claude" / "agents"
+            agents_dir.mkdir(parents=True, exist_ok=True)
+            for agent_name in _AGENT_NAMES:
+                out_file = agents_dir / _agent_output_name(agent_name)
+                files[out_file] = render_agent(agent_name, config)
+            if config.custom_agent_description:
+                files[agents_dir / "custom.md"] = render_custom_agent(config)
 
         # Write all to temp
         for path, content in files.items():

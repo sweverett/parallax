@@ -5,11 +5,13 @@ from typing import Literal
 
 PackageManager = Literal["pixi", "poetry", "pdm", "uv", "pip"]
 TestFramework = Literal["pytest", "unittest", "nose2"]
+TokenTier = Literal["pro", "5x", "20x", "api"]
 
 VALID_PACKAGE_MANAGERS: frozenset[str] = frozenset(
     ["pixi", "poetry", "pdm", "uv", "pip"]
 )
 VALID_TEST_FRAMEWORKS: frozenset[str] = frozenset(["pytest", "unittest", "nose2"])
+VALID_TOKEN_TIERS: frozenset[str] = frozenset(["pro", "5x", "20x", "api"])
 
 
 @dataclass(frozen=True)
@@ -28,6 +30,7 @@ class ProjectConfig:
     branch_prefix: str
     generate_skills: bool
     generate_hooks: bool
+    token_tier: TokenTier
 
     # Phase B: detailed context (all may be empty)
     editor: str
@@ -35,6 +38,7 @@ class ProjectConfig:
     preferred_patterns: str
     outlawed_patterns: str
     key_libraries: str
+    custom_agent_description: str
 
     def __post_init__(self) -> None:
         # Required non-empty strings
@@ -56,5 +60,12 @@ class ProjectConfig:
             msg = (
                 f"Invalid test_framework {self.test_framework!r}. "
                 f"Must be one of: {sorted(VALID_TEST_FRAMEWORKS)}"
+            )
+            raise ValueError(msg)
+
+        if self.token_tier not in VALID_TOKEN_TIERS:
+            msg = (
+                f"Invalid token_tier {self.token_tier!r}. "
+                f"Must be one of: {sorted(VALID_TOKEN_TIERS)}"
             )
             raise ValueError(msg)

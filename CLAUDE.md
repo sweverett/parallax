@@ -27,15 +27,17 @@ See [VISION.md](docs/VISION.md) for full architecture. See [ROADMAP.md](docs/ROA
 
 ```
 src/parallax/           # Main package
-  cli/                  # Typer CLI commands (init, refine)
-  core/                 # Config, interview, renderer, workflow logic
+  cli/                  # Typer CLI commands (init, refine, config)
+  core/                 # Config, interview, renderer, refiner
     config.py           # ProjectConfig dataclass
     interview.py        # Structured init interview
     renderer.py         # Template rendering + file generation
+    refiner.py          # Auto-refinement via Claude CLI
   db/                   # SQLite models + queries (Layer 2)
   templates/            # string.Template files for parallax init output
+    agents/             # Agent definition templates (hypothesis_explorer, etc.)
     hooks/              # Hook script templates (test_guard, lint_check, stop_check)
-    skills/             # Skill templates (hypothesis, handoff, audit, experiment)
+    skills/             # Skill templates (hypothesis, handoff, audit, experiment, session_start)
 tests/                  # pytest (mirrors src structure)
 docs/                   # VISION.md, ROADMAP.md, plans/
 .claude/hooks/          # Hook enforcement scripts for Parallax development
@@ -105,8 +107,13 @@ pixi run check       # all of the above
 - Never add backward-compat shims — just change the code
 - Never create docs/READMEs unless explicitly requested
 
-## Documentation Maintenance
+## Plan Completion & Verification
 
+- **Archive the plan.** At the start of implementation, copy the plan file to `docs/plans/NNN_short-name.md` (next sequence number). The plan path is in the system message from plan mode.
+- Every plan's verification section is **mandatory**. At the end of implementation:
+  1. **List all verification commands** from the plan so the user can run them independently
+  2. **Execute each one** and report the result (pass/fail, key output) explicitly to the user
+- `pixi run check` is baseline; also run any CLI smoke tests or manual checks the plan specifies
 - At the end of every plan, verify README.md and other markdown docs reflect current state
 - If code changes affect documented behavior, update the relevant docs in the same PR
 - @README.md and other key docs should be reviewed before marking any plan complete

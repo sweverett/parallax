@@ -25,11 +25,13 @@ def _full_config() -> ProjectConfig:
         branch_prefix="se/",
         generate_skills=True,
         generate_hooks=True,
+        token_tier="pro",
         editor="vim",
         science_requirements="Measure photometric redshifts for LSST galaxies",
         preferred_patterns="Functional style, immutable data, explicit errors",
         outlawed_patterns="No global mutable state, no bare except",
         key_libraries="astropy: units and coordinates\njax: autodiff",
+        custom_agent_description="",
     )
 
 
@@ -38,7 +40,7 @@ class TestE2E:
         """Full init with all options enabled, verify all output."""
         cfg = _full_config()
         with patch("parallax.cli.run_interview", return_value=cfg):
-            result = runner.invoke(app, ["init", "-t", str(tmp_path)])
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
 
         assert result.exit_code == 0, result.output
         assert "Parallax initialized" in result.output
@@ -48,8 +50,22 @@ class TestE2E:
         assert (tmp_path / "PARALLAX.md").exists()
         assert (tmp_path / "CONSTITUTION.md").exists()
         assert (tmp_path / ".claude" / "settings.json").exists()
-        for skill in ["hypothesis", "handoff", "audit", "experiment"]:
+        for skill in [
+            "hypothesis",
+            "handoff",
+            "audit",
+            "experiment",
+            "session-start",
+        ]:
             assert (tmp_path / ".claude" / "skills" / skill / "SKILL.md").exists()
+        # Agent files
+        for agent in [
+            "hypothesis-explorer",
+            "experiment-runner",
+            "literature-reviewer",
+            "result-validator",
+        ]:
+            assert (tmp_path / ".claude" / "agents" / f"{agent}.md").exists()
 
         # --- CLAUDE.md content ---
         claude = (tmp_path / "CLAUDE.md").read_text()
@@ -103,10 +119,24 @@ class TestE2E:
         assert "${" not in settings
 
         # --- Skills content ---
-        for skill in ["hypothesis", "handoff", "audit", "experiment"]:
+        for skill in [
+            "hypothesis",
+            "handoff",
+            "audit",
+            "experiment",
+            "session-start",
+        ]:
             text = (tmp_path / ".claude" / "skills" / skill / "SKILL.md").read_text()
             assert "astro-pipeline" in text
             assert "${" not in text
+
+        # --- Agent content ---
+        explorer = (
+            tmp_path / ".claude" / "agents" / "hypothesis-explorer.md"
+        ).read_text()
+        assert "model: haiku" in explorer
+        assert "hypothesis-explorer" in explorer
+        assert "${" not in explorer
 
     def test_minimal_pipeline(self, tmp_path: Path) -> None:
         """Minimal config: no units, no jax, no skills, no hooks."""
@@ -122,14 +152,16 @@ class TestE2E:
             branch_prefix="",
             generate_skills=False,
             generate_hooks=False,
+            token_tier="pro",
             editor="",
             science_requirements="",
             preferred_patterns="",
             outlawed_patterns="",
             key_libraries="",
+            custom_agent_description="",
         )
         with patch("parallax.cli.run_interview", return_value=cfg):
-            result = runner.invoke(app, ["init", "-t", str(tmp_path)])
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
 
         assert result.exit_code == 0
         # Only 3 core files
@@ -152,7 +184,7 @@ class TestE2E:
         """Init then refine --done: blocks are stripped, content preserved."""
         cfg = _full_config()
         with patch("parallax.cli.run_interview", return_value=cfg):
-            runner.invoke(app, ["init", "-t", str(tmp_path)])
+            runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
 
         monkeypatch.chdir(tmp_path)
         result = runner.invoke(app, ["refine", "--done"])
@@ -165,3 +197,54 @@ class TestE2E:
         parallax = (tmp_path / "PARALLAX.md").read_text()
         assert "PARALLAX REFINEMENT" not in parallax
         assert "Hypothesis Protocol" in parallax
+
+    def test_token_tier_flag(self, tmp_path: Path) -> None:
+        """--token-tier flag overrides default."""
+        cfg = _full_config()
+        with patch("parallax.cli.run_interview", return_value=cfg) as mock:
+            runner.invoke(
+                app,
+                [
+                    "init",
+                    "-t",
+                    str(tmp_path),
+                    "--token-tier",
+                    "5x",
+                    "--skip-refine",
+                ],
+            )
+            mock.assert_called_once_with(yes=False, token_tier_override="5x")
+
+    def test_invalid_token_tier_flag(self) -> None:
+        result = runner.invoke(app, ["init", "--token-tier", "free", "--skip-refine"])
+        assert result.exit_code == 1
+        assert "invalid token tier" in result.output.lower()
+
+    def test_custom_agent_pipeline(self, tmp_path: Path) -> None:
+        """Config with custom agent generates custom.md."""
+        cfg = ProjectConfig(
+            project_name="custom-proj",
+            summary="Custom agent test",
+            domain="testing",
+            languages="Python",
+            package_manager="pixi",
+            test_framework="pytest",
+            uses_units=False,
+            uses_jax=False,
+            branch_prefix="",
+            generate_skills=True,
+            generate_hooks=False,
+            token_tier="pro",
+            editor="",
+            science_requirements="",
+            preferred_patterns="",
+            outlawed_patterns="",
+            key_libraries="",
+            custom_agent_description="validates ETL pipeline outputs",
+        )
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
+
+        assert result.exit_code == 0
+        custom = (tmp_path / ".claude" / "agents" / "custom.md").read_text()
+        assert "validates ETL pipeline outputs" in custom

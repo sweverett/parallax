@@ -10,7 +10,12 @@ from typing import cast
 
 import typer
 
-from parallax.core.config import PackageManager, ProjectConfig, TestFramework
+from parallax.core.config import (
+    PackageManager,
+    ProjectConfig,
+    TestFramework,
+    TokenTier,
+)
 
 # ---------------------------------------------------------------------------
 # Sub-context strings shown during interview
@@ -50,6 +55,13 @@ _CTX_GENERATE_HOOKS = (
     "Creates .claude/settings.json with baseline hook structure "
     "(test protection, lint/format reminders)."
 )
+_CTX_TOKEN_TIER = (
+    "Controls default model selection for generated agents.\n"
+    "  pro  -- conservative: haiku exploration, sonnet validation\n"
+    "  5x   -- balanced: sonnet exploration, opus validation\n"
+    "  20x  -- generous: opus for most tasks\n"
+    "  api  -- unconstrained: opus everywhere"
+)
 _CTX_DETAILED_GATE = (
     "Optional: provide detailed project context via your editor. "
     "Populates additional CLAUDE.md sections."
@@ -72,6 +84,15 @@ _CTX_KEY_LIBRARIES = (
     "List important packages, their roles, and gotchas. "
     "Include bespoke/internal libraries Claude might not know about. "
     "Leave blank to skip."
+)
+_CTX_CUSTOM_AGENT = (
+    "Define a project-specific agent beyond the core scientific ones\n"
+    "  (hypothesis-explorer, experiment-runner,\n"
+    "   literature-reviewer, result-validator).\n"
+    "  Describe its purpose and what it should do. Parallax wraps it\n"
+    "  in a generic agent definition; refinement polishes it.\n"
+    '  Example: "data-pipeline-validator -- checks ETL outputs for\n'
+    '  schema drift and NaN propagation"'
 )
 
 # ---------------------------------------------------------------------------
@@ -168,10 +189,13 @@ def _ask_choice(
 # ---------------------------------------------------------------------------
 
 
-def run_interview(*, yes: bool = False) -> ProjectConfig:
+def run_interview(
+    *, yes: bool = False, token_tier_override: str | None = None
+) -> ProjectConfig:
     """Run the structured interview, returning a ProjectConfig.
 
     If yes=True, skip questions with defaults. Still prompt required fields.
+    token_tier_override: if set from CLI flag, skip the token tier question.
     """
     typer.echo("Parallax project initialization\n")
 
@@ -198,6 +222,7 @@ def run_interview(*, yes: bool = False) -> ProjectConfig:
         branch_prefix = ""
         generate_skills = True
         generate_hooks = True
+        token_tier: TokenTier = "pro"
     else:
         languages = _ask_text("Primary language(s)", _CTX_LANGUAGES, default="Python")
         package_manager = cast(
@@ -231,6 +256,19 @@ def run_interview(*, yes: bool = False) -> ProjectConfig:
             _CTX_GENERATE_HOOKS,
             default=True,
         )
+        token_tier = cast(
+            "TokenTier",
+            _ask_choice(
+                "Token usage tier",
+                _CTX_TOKEN_TIER,
+                ["pro", "5x", "20x", "api"],
+                default="pro",
+            ),
+        )
+
+    # CLI flag override
+    if token_tier_override is not None:
+        token_tier = cast("TokenTier", token_tier_override)
 
     # Phase B gate
     editor = ""
@@ -238,6 +276,7 @@ def run_interview(*, yes: bool = False) -> ProjectConfig:
     preferred_patterns = ""
     outlawed_patterns = ""
     key_libraries = ""
+    custom_agent_description = ""
 
     if not yes:
         add_detailed = _ask_bool(
@@ -260,6 +299,9 @@ def run_interview(*, yes: bool = False) -> ProjectConfig:
             typer.echo(f"\n  {_CTX_KEY_LIBRARIES}")
             key_libraries = _open_editor(editor, "key_libraries")
 
+            typer.echo(f"\n  {_CTX_CUSTOM_AGENT}")
+            custom_agent_description = _open_editor(editor, "custom_agent")
+
     return ProjectConfig(
         project_name=project_name,
         summary=summary,
@@ -272,9 +314,11 @@ def run_interview(*, yes: bool = False) -> ProjectConfig:
         branch_prefix=branch_prefix,
         generate_skills=generate_skills,
         generate_hooks=generate_hooks,
+        token_tier=token_tier,
         editor=editor,
         science_requirements=science_requirements,
         preferred_patterns=preferred_patterns,
         outlawed_patterns=outlawed_patterns,
         key_libraries=key_libraries,
+        custom_agent_description=custom_agent_description,
     )

@@ -17,11 +17,13 @@ def make_config(**overrides: object) -> ProjectConfig:
         "branch_prefix": "",
         "generate_skills": True,
         "generate_hooks": True,
+        "token_tier": "pro",
         "editor": "vim",
         "science_requirements": "",
         "preferred_patterns": "",
         "outlawed_patterns": "",
         "key_libraries": "",
+        "custom_agent_description": "",
     }
     defaults.update(overrides)
     return ProjectConfig(**defaults)  # type: ignore[arg-type]
