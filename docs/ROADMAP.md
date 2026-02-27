@@ -80,3 +80,4 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 - **Container strategy**: pixi for now. Evaluate Docker/Apptainer for HPC reproducibility in Layer 2/3.
 - **Notebook format**: Jupytext (markdown-based, diffable). Evaluate when Layer 2 auto-docs land.
 - **Terminal multiplexer docs**: Add tmux/cmux usage tutorial to docs/ when multiplexer integration lands.
+- **Vision/roadmap as generated convention**: Parallax-dev uses VISION.md + ROADMAP.md for strategic context in `/session-start`, but these aren't part of the generated template yet. Scope/format TBD after dogfooding.
