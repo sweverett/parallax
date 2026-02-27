@@ -35,7 +35,7 @@ src/parallax/           # Main package
     refiner.py          # Auto-refinement via Claude CLI
   db/                   # SQLite models + queries (Layer 2)
   templates/            # string.Template files for parallax init output
-    agents/             # Agent definition templates (hypothesis_explorer, etc.)
+    agents/             # Agent definition templates (hypothesis_explorer, paper_writer, etc.)
     hooks/              # Hook script templates (test_guard, lint_check, stop_check)
     skills/             # Skill templates (hypothesis, handoff, audit, experiment, session_start)
 tests/                  # pytest (mirrors src structure)

@@ -46,6 +46,8 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 - [x] Auto-refinement via Claude CLI (`parallax init` invokes `claude -p`)
 - [x] `parallax config set token-tier` for post-init changes
 - [x] `memory: project` on hypothesis + experiment skills
+- [x] Writing agents: paper-writer (LaTeX), presentation-writer (Beamer)
+- [ ] LaTeX/Beamer writing skills (`/paper-review`, `/latex-guide`) as preloaded skills for writing agents
 - [ ] CI enhancements: semantic version validation, doc staleness check
 
 ## Layer 2 Features (MVP-beta)

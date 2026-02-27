@@ -27,3 +27,6 @@ jobs:
 
       - name: Test
         run: pixi run test
+
+      - name: Doc staleness check
+        run: pixi run doc-check

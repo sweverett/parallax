@@ -17,6 +17,7 @@ lint = "ruff check src/ tests/"
 format = "ruff format src/ tests/"
 format-check = "ruff format --check src/ tests/"
 typecheck = "mypy --strict src/parallax"
+doc-check = "python scripts/check_doc_staleness.py"
 check = { depends-on = ["lint", "typecheck", "test"] }
 
 [feature.dev.dependencies]

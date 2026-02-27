@@ -64,6 +64,8 @@ class TestE2E:
             "experiment-runner",
             "literature-reviewer",
             "result-validator",
+            "paper-writer",
+            "presentation-writer",
         ]:
             assert (tmp_path / ".claude" / "agents" / f"{agent}.md").exists()
 

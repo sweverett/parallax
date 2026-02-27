@@ -104,7 +104,7 @@ parallax config set token-tier 5x    # update agent model selection
 - **PARALLAX.md** -- scientific workflow rules
 - **CONSTITUTION.md** -- core scientific principles
 - **.claude/skills/** -- hypothesis, handoff, audit, experiment, session-start skills
-- **.claude/agents/** -- hypothesis-explorer, experiment-runner, literature-reviewer, result-validator agents
+- **.claude/agents/** -- hypothesis-explorer, experiment-runner, literature-reviewer, result-validator, paper-writer, presentation-writer agents
 - **.claude/hooks/** -- test guard, lint check, stop check enforcement scripts
 - **.claude/settings.json** -- hook configuration referencing scripts above
 
@@ -124,7 +124,7 @@ What exists:
 - `parallax config`: post-init configuration changes (token tier)
 - Hook enforcement: test guard (blocks test weakening), lint check (ruff feedback), stop check (uncommitted work reminder)
 - Full skill definitions: /hypothesis, /handoff, /audit, /experiment, /session-start
-- Custom agent definitions: hypothesis-explorer, experiment-runner, literature-reviewer, result-validator
+- Agent definitions: hypothesis-explorer, experiment-runner, literature-reviewer, result-validator, paper-writer, presentation-writer
 - Token tier system: model selection per agent based on usage tier (pro/5x/20x/api)
 - CI pipeline (ruff, mypy --strict, pytest)
 - Integration test suite validating generated output

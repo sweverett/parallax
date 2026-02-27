@@ -32,6 +32,8 @@ class TestGeneratedOutput:
             ".claude/agents/experiment-runner.md",
             ".claude/agents/literature-reviewer.md",
             ".claude/agents/result-validator.md",
+            ".claude/agents/paper-writer.md",
+            ".claude/agents/presentation-writer.md",
         }
         assert expected == names
 

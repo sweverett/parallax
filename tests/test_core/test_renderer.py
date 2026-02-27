@@ -192,12 +192,16 @@ class TestModelForAgent:
         assert model_for_agent("experiment_runner", "pro") == "sonnet"
         assert model_for_agent("literature_reviewer", "pro") == "haiku"
         assert model_for_agent("result_validator", "pro") == "sonnet"
+        assert model_for_agent("paper_writer", "pro") == "sonnet"
+        assert model_for_agent("presentation_writer", "pro") == "sonnet"
 
     def test_5x_tier_models(self) -> None:
         assert model_for_agent("hypothesis_explorer", "5x") == "opus"
         assert model_for_agent("experiment_runner", "5x") == "sonnet"
         assert model_for_agent("literature_reviewer", "5x") == "sonnet"
         assert model_for_agent("result_validator", "5x") == "opus"
+        assert model_for_agent("paper_writer", "5x") == "opus"
+        assert model_for_agent("presentation_writer", "5x") == "opus"
 
     def test_api_tier_all_opus(self) -> None:
         for agent in [
@@ -205,6 +209,8 @@ class TestModelForAgent:
             "experiment_runner",
             "literature_reviewer",
             "result_validator",
+            "paper_writer",
+            "presentation_writer",
         ]:
             assert model_for_agent(agent, "api") == "opus"
 
@@ -239,12 +245,36 @@ class TestRenderAgent:
         assert "model: opus" in out
         assert "result-validator" in out
 
+    def test_paper_writer_pro(self) -> None:
+        out = render_agent("paper_writer", make_config())
+        assert "model: sonnet" in out
+        assert "paper-writer" in out
+        assert "astrophysics" in out
+        assert "${" not in out
+
+    def test_paper_writer_5x(self) -> None:
+        out = render_agent("paper_writer", make_config(token_tier="5x"))
+        assert "model: opus" in out
+
+    def test_presentation_writer_pro(self) -> None:
+        out = render_agent("presentation_writer", make_config())
+        assert "model: sonnet" in out
+        assert "presentation-writer" in out
+        assert "astrophysics" in out
+        assert "${" not in out
+
+    def test_presentation_writer_5x(self) -> None:
+        out = render_agent("presentation_writer", make_config(token_tier="5x"))
+        assert "model: opus" in out
+
     def test_all_agents_no_unsubstituted_vars(self) -> None:
         for name in [
             "hypothesis_explorer",
             "experiment_runner",
             "literature_reviewer",
             "result_validator",
+            "paper_writer",
+            "presentation_writer",
         ]:
             out = render_agent(name, make_config())
             assert "${" not in out, f"Unsubstituted var in {name}"
@@ -311,6 +341,8 @@ class TestRenderProject:
         assert ".claude/agents/experiment-runner.md" in names
         assert ".claude/agents/literature-reviewer.md" in names
         assert ".claude/agents/result-validator.md" in names
+        assert ".claude/agents/paper-writer.md" in names
+        assert ".claude/agents/presentation-writer.md" in names
 
     def test_no_skills_when_disabled(self, tmp_path: Path) -> None:
         written = render_project(make_config(generate_skills=False), tmp_path)
@@ -356,6 +388,12 @@ class TestRenderProject:
         assert "model: haiku" in explorer
         runner = (tmp_path / ".claude" / "agents" / "experiment-runner.md").read_text()
         assert "model: sonnet" in runner
+        writer = (tmp_path / ".claude" / "agents" / "paper-writer.md").read_text()
+        assert "model: sonnet" in writer
+        presenter = (
+            tmp_path / ".claude" / "agents" / "presentation-writer.md"
+        ).read_text()
+        assert "model: sonnet" in presenter
 
     def test_agents_have_correct_models_api(self, tmp_path: Path) -> None:
         render_project(make_config(token_tier="api"), tmp_path)
@@ -374,3 +412,32 @@ class TestRenderProject:
     def test_no_custom_agent_when_empty(self, tmp_path: Path) -> None:
         render_project(make_config(), tmp_path)
         assert not (tmp_path / ".claude" / "agents" / "custom.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# Template edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestEdgeCases:
+    def test_project_name_with_spaces(self) -> None:
+        out = render_claude_md(make_config(project_name="My Cool Project"))
+        assert "My Cool Project" in out
+        assert "${" not in out
+
+    def test_project_name_with_hyphens_and_numbers(self) -> None:
+        out = render_claude_md(make_config(project_name="astro-v2"))
+        assert "astro-v2" in out
+        assert "${" not in out
+
+    def test_very_long_summary(self) -> None:
+        long_summary = "A" * 250
+        out = render_claude_md(make_config(summary=long_summary))
+        assert long_summary in out
+
+    def test_domain_with_special_chars(self) -> None:
+        out = render_claude_md(
+            make_config(domain="high-energy particle physics")
+        )
+        assert "high-energy particle physics" in out
+        assert "${" not in out

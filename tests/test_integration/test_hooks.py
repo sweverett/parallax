@@ -159,6 +159,24 @@ class TestLintCheck:
         result = _run_hook("lint_check.py", payload)
         assert result.returncode == 0
 
+    def test_reports_ruff_issues(self, tmp_path: Path) -> None:
+        """File with lint issues produces 'ruff issues in' output."""
+        bad_file = tmp_path / "bad.py"
+        bad_file.write_text("import os\nimport sys\nx = 1\n")
+        payload = _write_payload(str(bad_file), bad_file.read_text())
+        result = _run_hook("lint_check.py", payload)
+        assert result.returncode == 0  # always informational
+        assert "ruff issues in" in result.stdout
+
+    def test_clean_file_no_issues(self, tmp_path: Path) -> None:
+        """Clean file produces no ruff issues output."""
+        clean_file = tmp_path / "clean.py"
+        clean_file.write_text("x = 1\n")
+        payload = _write_payload(str(clean_file), clean_file.read_text())
+        result = _run_hook("lint_check.py", payload)
+        assert result.returncode == 0
+        assert "ruff issues" not in result.stdout
+
 
 # ---------------------------------------------------------------------------
 # stop_check.py tests
@@ -166,8 +184,25 @@ class TestLintCheck:
 
 
 class TestStopCheck:
-    def test_runs_in_git_repo(self, tmp_path: Path) -> None:
-        """Run stop_check in a temp git repo."""
+    def test_uncommitted_changes_detected(self, tmp_path: Path) -> None:
+        """Uncommitted file triggers warning."""
+        subprocess.run(["git", "init", str(tmp_path)], capture_output=True, check=True)
+        (tmp_path / "dirty.txt").write_text("uncommitted")
+        hook_path = _HOOKS_DIR / "stop_check.py"
+        result = subprocess.run(
+            [sys.executable, str(hook_path)],
+            input="",
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
+            timeout=10,
+        )
+        assert result.returncode == 0
+        assert "uncommitted change(s) detected" in result.stdout
+        assert "REMINDER: Consider running /handoff" in result.stdout
+
+    def test_clean_repo_no_uncommitted_warning(self, tmp_path: Path) -> None:
+        """Clean git repo: no uncommitted warning, still has reminder."""
         subprocess.run(["git", "init", str(tmp_path)], capture_output=True, check=True)
         hook_path = _HOOKS_DIR / "stop_check.py"
         result = subprocess.run(
@@ -179,6 +214,8 @@ class TestStopCheck:
             timeout=10,
         )
         assert result.returncode == 0
+        assert "uncommitted" not in result.stdout
+        assert "REMINDER: Consider running /handoff" in result.stdout
 
     @pytest.mark.usefixtures("tmp_path")
     def test_runs_outside_git_repo(self, tmp_path: Path) -> None:

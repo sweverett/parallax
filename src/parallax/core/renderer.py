@@ -201,6 +201,18 @@ _MODEL_MAP: dict[str, dict[str, str]] = {
         "20x": "opus",
         "api": "opus",
     },
+    "paper_writer": {
+        "pro": "sonnet",
+        "5x": "opus",
+        "20x": "opus",
+        "api": "opus",
+    },
+    "presentation_writer": {
+        "pro": "sonnet",
+        "5x": "opus",
+        "20x": "opus",
+        "api": "opus",
+    },
 }
 
 # Template var name -> agent template name mapping
@@ -209,6 +221,8 @@ _AGENT_MODEL_VARS: dict[str, str] = {
     "experiment_runner": "runner_model",
     "literature_reviewer": "reviewer_model",
     "result_validator": "validator_model",
+    "paper_writer": "writer_model",
+    "presentation_writer": "presenter_model",
 }
 
 _AGENT_NAMES = [
@@ -216,6 +230,8 @@ _AGENT_NAMES = [
     "experiment_runner",
     "literature_reviewer",
     "result_validator",
+    "paper_writer",
+    "presentation_writer",
 ]
 
 
