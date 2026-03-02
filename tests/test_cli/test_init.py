@@ -184,9 +184,7 @@ class TestMergeMode:
             patch("parallax.cli.run_interview", return_value=cfg),
             patch("parallax.cli.typer.confirm", return_value=True),
         ):
-            result = runner.invoke(
-                app, ["init", "-t", str(tmp_path), "--skip-refine"]
-            )
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
         assert result.exit_code == 0
         assert "CLAUDE.md" in result.output
         assert "conflict" in result.output.lower()
@@ -224,9 +222,7 @@ class TestMergeMode:
             patch("parallax.cli.typer.confirm", return_value=False),
             patch("parallax.cli.run_refinement", return_value=True) as mock_refine,
         ):
-            result = runner.invoke(
-                app, ["init", "-t", str(tmp_path)]
-            )
+            result = runner.invoke(app, ["init", "-t", str(tmp_path)])
         assert result.exit_code == 0
         # Should not have launched refinement since user declined
         mock_refine.assert_not_called()

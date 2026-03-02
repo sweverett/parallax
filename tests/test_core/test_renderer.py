@@ -447,9 +447,7 @@ class TestEdgeCases:
         assert long_summary in out
 
     def test_domain_with_special_chars(self) -> None:
-        out = render_claude_md(
-            make_config(domain="high-energy particle physics")
-        )
+        out = render_claude_md(make_config(domain="high-energy particle physics"))
         assert "high-energy particle physics" in out
         assert "${" not in out
 

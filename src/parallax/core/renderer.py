@@ -27,6 +27,7 @@ class MergeResult:
     suffixed: list[Path] = field(default_factory=list)
     skipped: list[Path] = field(default_factory=list)
 
+
 # ---------------------------------------------------------------------------
 # Template loading
 # ---------------------------------------------------------------------------
@@ -374,9 +375,7 @@ def _render_all_content(config: ProjectConfig) -> dict[str, str]:
 
     if config.generate_skills:
         for skill_name in _SKILL_NAMES:
-            out_name = (
-                skill_name.replace("_", "-") if "_" in skill_name else skill_name
-            )
+            out_name = skill_name.replace("_", "-") if "_" in skill_name else skill_name
             files[f".claude/skills/{out_name}/SKILL.md"] = render_skill(
                 skill_name, config
             )

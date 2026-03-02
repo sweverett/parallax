@@ -242,9 +242,7 @@ class TestE2E:
             patch("parallax.cli.run_interview") as mock,
             patch("parallax.cli.typer.confirm", return_value=True),
         ):
-            result = runner.invoke(
-                app, ["init", "-t", str(tmp_path), "--skip-refine"]
-            )
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
         assert result.exit_code == 0
         mock.assert_not_called()
         assert (tmp_path / "CLAUDE.md").exists()

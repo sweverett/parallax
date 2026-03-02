@@ -71,9 +71,7 @@ class TestInteractiveMode:
                 "parallax.core.refiner.shutil.which",
                 return_value="/usr/bin/claude",
             ),
-            patch(
-                "parallax.core.refiner.subprocess.run", return_value=mock_result
-            ),
+            patch("parallax.core.refiner.subprocess.run", return_value=mock_result),
         ):
             result = run_refinement(tmp_path)
 
