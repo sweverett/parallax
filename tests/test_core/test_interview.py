@@ -2,7 +2,12 @@
 
 from unittest.mock import patch
 
-from parallax.core.interview import _ask_choice, run_interview
+from parallax.core.interview import (
+    _ask_choice,
+    _parse_phase_b,
+    _strip_html_comments,
+    run_interview,
+)
 
 
 class TestRunInterviewYesMode:
@@ -200,3 +205,98 @@ class TestAskChoice:
             )
 
         assert result == "pixi"
+
+
+class TestPhaseBParsing:
+    """Tests for the single-editor Phase B parsing."""
+
+    def test_parse_all_sections_filled(self) -> None:
+        text = (
+            "## Science Requirements\n"
+            "Measure galaxy redshifts\n\n"
+            "## Preferred Patterns\n"
+            "Functional style\n\n"
+            "## Outlawed Patterns\n"
+            "No bare except\n\n"
+            "## Key Libraries\n"
+            "astropy: units\njax: autodiff\n\n"
+            "## Custom Agent\n"
+            "pipeline-validator -- checks ETL outputs\n"
+        )
+        result = _parse_phase_b(text)
+        assert result["science_requirements"] == "Measure galaxy redshifts"
+        assert result["preferred_patterns"] == "Functional style"
+        assert result["outlawed_patterns"] == "No bare except"
+        assert result["key_libraries"] == "astropy: units\njax: autodiff"
+        assert (
+            result["custom_agent_description"]
+            == "pipeline-validator -- checks ETL outputs"
+        )
+
+    def test_parse_empty_sections(self) -> None:
+        text = (
+            "## Science Requirements\n\n"
+            "## Preferred Patterns\n\n"
+            "## Outlawed Patterns\n\n"
+            "## Key Libraries\n\n"
+            "## Custom Agent\n\n"
+        )
+        result = _parse_phase_b(text)
+        for field in result.values():
+            assert field == ""
+
+    def test_parse_with_html_comments_stripped(self) -> None:
+        text = (
+            "## Science Requirements\n"
+            "<!-- This is an instruction -->\n"
+            "Actual content here\n\n"
+            "## Preferred Patterns\n"
+            "<!-- Multi-line\n"
+            "instruction -->\n"
+            "Real patterns\n"
+        )
+        result = _parse_phase_b(text)
+        assert result["science_requirements"] == "Actual content here"
+        assert result["preferred_patterns"] == "Real patterns"
+
+    def test_parse_missing_sections_default_empty(self) -> None:
+        text = "## Science Requirements\nSome content\n"
+        result = _parse_phase_b(text)
+        assert result["science_requirements"] == "Some content"
+        assert result["preferred_patterns"] == ""
+        assert result["custom_agent_description"] == ""
+
+    def test_parse_preserves_multiline_content(self) -> None:
+        text = (
+            "## Key Libraries\n"
+            "astropy: units and coordinates\n"
+            "jax: autodiff framework\n"
+            "galsim: galaxy image simulation\n"
+        )
+        result = _parse_phase_b(text)
+        assert "astropy" in result["key_libraries"]
+        assert "galsim" in result["key_libraries"]
+        assert "\n" in result["key_libraries"]
+
+    def test_strip_html_comments(self) -> None:
+        assert _strip_html_comments("hello <!-- gone --> world") == "hello  world"
+        assert _strip_html_comments("<!-- multi\nline -->keep") == "keep"
+        assert _strip_html_comments("no comments") == "no comments"
+
+    def test_parse_full_template(self) -> None:
+        """Parse the actual template with user content added."""
+        from parallax.core.interview import _PHASE_B_TEMPLATE
+
+        # Simulate user filling in sections
+        filled = _PHASE_B_TEMPLATE.replace(
+            "## Science Requirements\n"
+            "<!-- What is this project trying to achieve scientifically?\n"
+            "     Describe objectives, key phenomena, methods. -->",
+            "## Science Requirements\n"
+            "<!-- What is this project trying to achieve scientifically?\n"
+            "     Describe objectives, key phenomena, methods. -->\n"
+            "Measure photometric redshifts for LSST",
+        )
+        result = _parse_phase_b(filled)
+        expected = "Measure photometric redshifts for LSST"
+        assert result["science_requirements"] == expected

@@ -1,6 +1,11 @@
 """ProjectConfig: frozen dataclass holding all parallax init responses."""
 
+from __future__ import annotations
+
+import dataclasses
+import json
 from dataclasses import dataclass
+from pathlib import Path  # noqa: TC003 — used at runtime in to_json/from_json
 from typing import Literal
 
 PackageManager = Literal["pixi", "poetry", "pdm", "uv", "pip"]
@@ -69,3 +74,17 @@ class ProjectConfig:
                 f"Must be one of: {sorted(VALID_TOKEN_TIERS)}"
             )
             raise ValueError(msg)
+
+    def to_json(self, path: Path) -> None:
+        """Serialize config to JSON file. Creates parent dirs if needed."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(dataclasses.asdict(self), indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    @classmethod
+    def from_json(cls, path: Path) -> ProjectConfig:
+        """Deserialize config from JSON file."""
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cls(**data)

@@ -90,6 +90,7 @@ parallax init -y                     # accept defaults, skip optional
 parallax init -f                     # overwrite existing files
 parallax init --token-tier 5x        # set model tier for agents
 parallax init --skip-refine          # skip auto-refinement
+parallax init -b                     # run refinement in background (headless)
 
 # Post-init refinement
 parallax refine                      # print refinement instructions

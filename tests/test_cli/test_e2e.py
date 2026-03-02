@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from parallax.cli import app
+from parallax.cli import _CACHE_REL, app
 from parallax.core.config import ProjectConfig
 
 runner = CliRunner()
@@ -215,12 +215,42 @@ class TestE2E:
                     "--skip-refine",
                 ],
             )
-            mock.assert_called_once_with(yes=False, token_tier_override="5x")
+            mock.assert_called_once_with(
+                yes=False, token_tier_override="5x", target=tmp_path.resolve()
+            )
 
     def test_invalid_token_tier_flag(self) -> None:
         result = runner.invoke(app, ["init", "--token-tier", "free", "--skip-refine"])
         assert result.exit_code == 1
         assert "invalid token tier" in result.output.lower()
+
+    def test_early_conflict_skips_interview(self, tmp_path: Path) -> None:
+        """Already-initialized dir fails before interview runs."""
+        (tmp_path / "PARALLAX.md").write_text("existing")
+        with patch("parallax.cli.run_interview") as mock:
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
+        assert result.exit_code == 1
+        assert "already Parallax-managed" in result.output
+        mock.assert_not_called()
+
+    def test_cache_resume_e2e(self, tmp_path: Path) -> None:
+        """Cache from first run resumes on second run, full output verified."""
+        cfg = _full_config()
+        cache = tmp_path / _CACHE_REL
+        cfg.to_json(cache)
+        with (
+            patch("parallax.cli.run_interview") as mock,
+            patch("parallax.cli.typer.confirm", return_value=True),
+        ):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine"]
+            )
+        assert result.exit_code == 0
+        mock.assert_not_called()
+        assert (tmp_path / "CLAUDE.md").exists()
+        assert "astro-pipeline" in (tmp_path / "CLAUDE.md").read_text()
+        # Cache auto-deleted
+        assert not cache.exists()
 
     def test_custom_agent_pipeline(self, tmp_path: Path) -> None:
         """Config with custom agent generates custom.md."""

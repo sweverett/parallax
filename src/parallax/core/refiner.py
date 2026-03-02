@@ -34,8 +34,15 @@ Report what was changed in a brief summary.
 """
 
 
-def run_refinement(target: Path) -> bool:
-    """Invoke Claude CLI for post-init synthesis. Returns True if successful."""
+_BACKGROUND_TIMEOUT = 300
+
+
+def run_refinement(target: Path, *, background: bool = False) -> bool:
+    """Invoke Claude CLI for post-init synthesis. Returns True if successful.
+
+    Default: interactive session (user sees and controls Claude).
+    background=True: headless subprocess with 300s timeout.
+    """
     if not shutil.which("claude"):
         typer.echo(
             "Warning: 'claude' CLI not found. Skipping auto-refinement.\n"
@@ -44,15 +51,47 @@ def run_refinement(target: Path) -> bool:
         )
         return False
 
-    typer.echo("Running auto-refinement via Claude CLI...")
+    if background:
+        return _run_background(target)
+    return _run_interactive(target)
+
+
+def _run_interactive(target: Path) -> bool:
+    """Launch interactive Claude session with refinement prompt."""
+    typer.echo("Opening Claude Code session for refinement...")
+    try:
+        result = subprocess.run(
+            ["claude", "--permission-mode", "plan", _REFINEMENT_PROMPT],
+            cwd=target,
+        )
+    except FileNotFoundError:
+        typer.echo("Error: 'claude' binary not found.")
+        return False
+    if result.returncode != 0:
+        typer.echo(
+            f"Warning: Claude session exited with code {result.returncode}. "
+            "Refinement blocks may be left intact. Run `parallax refine` manually."
+        )
+        return False
+    typer.echo("Auto-refinement complete.")
+    return True
+
+
+def _run_background(target: Path) -> bool:
+    """Run refinement as headless subprocess with timeout."""
+    typer.echo("Running auto-refinement in background...")
     try:
         subprocess.run(
-            ["claude", "-p", _REFINEMENT_PROMPT, "--cwd", str(target)],
+            ["claude", "-p", _REFINEMENT_PROMPT],
             check=True,
-            timeout=120,
+            timeout=_BACKGROUND_TIMEOUT,
+            cwd=target,
         )
     except subprocess.TimeoutExpired:
-        typer.echo("Warning: refinement timed out after 120s. Files left as-is.")
+        typer.echo(
+            f"Warning: refinement timed out after {_BACKGROUND_TIMEOUT}s. "
+            "Files left as-is."
+        )
         return False
     except subprocess.CalledProcessError as exc:
         typer.echo(

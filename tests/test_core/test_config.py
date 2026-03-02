@@ -1,5 +1,7 @@
 """Tests for ProjectConfig dataclass."""
 
+from pathlib import Path
+
 import pytest
 
 from tests.conftest import make_config
@@ -117,3 +119,46 @@ class TestValidation:
     def test_custom_agent_description_field(self) -> None:
         cfg = make_config(custom_agent_description="my custom agent")
         assert cfg.custom_agent_description == "my custom agent"
+
+
+# ---------------------------------------------------------------------------
+# JSON serialization tests
+# ---------------------------------------------------------------------------
+
+
+class TestJsonRoundTrip:
+    def test_round_trip_defaults(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        path = tmp_path / "cache.json"
+        cfg.to_json(path)
+        loaded = type(cfg).from_json(path)
+        assert loaded == cfg
+
+    def test_round_trip_all_fields(self, tmp_path: Path) -> None:
+        cfg = make_config(
+            uses_units=True,
+            uses_jax=True,
+            branch_prefix="se/",
+            token_tier="20x",
+            science_requirements="Measure redshifts",
+            preferred_patterns="Functional",
+            outlawed_patterns="No bare except",
+            key_libraries="astropy: units",
+            custom_agent_description="pipeline checker",
+        )
+        path = tmp_path / "sub" / "cache.json"
+        cfg.to_json(path)
+        loaded = type(cfg).from_json(path)
+        assert loaded == cfg
+
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        path = tmp_path / "deep" / "nested" / "cache.json"
+        cfg.to_json(path)
+        assert path.exists()
+
+    def test_from_json_invalid_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / "bad.json"
+        path.write_text("{}", encoding="utf-8")
+        with pytest.raises(TypeError):
+            type(make_config()).from_json(path)

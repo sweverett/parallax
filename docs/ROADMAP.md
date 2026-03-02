@@ -43,7 +43,7 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 - [x] Hook scripts: test protection, lint check, stop check
 - [x] Custom agent definitions: hypothesis-explorer, experiment-runner, literature-reviewer, result-validator
 - [x] Token tier system: model selection per agent (pro/5x/20x/api)
-- [x] Auto-refinement via Claude CLI (`parallax init` invokes `claude -p`)
+- [x] Auto-refinement via Claude CLI (interactive plan-mode session; `-b` for headless background)
 - [x] `parallax config set token-tier` for post-init changes
 - [x] `memory: project` on hypothesis + experiment skills
 - [x] Writing agents: paper-writer (LaTeX), presentation-writer (Beamer)

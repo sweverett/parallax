@@ -67,72 +67,134 @@ _CTX_DETAILED_GATE = (
     "Populates additional CLAUDE.md sections."
 )
 _CTX_EDITOR = "Editor to use for multi-line input. Defaults to $EDITOR or 'vim'."
-_CTX_SCIENCE_REQUIREMENTS = (
-    "What is this project trying to achieve scientifically? "
-    "Describe objectives, key phenomena, methods. "
-    "Becomes a CLAUDE.md section. Leave blank to skip."
-)
-_CTX_PREFERRED_PATTERNS = (
-    "What should Claude favor? Coding style, error handling, "
-    "documentation level, testing philosophy. Leave blank to skip."
-)
-_CTX_OUTLAWED_PATTERNS = (
-    "What must Claude avoid? Anti-patterns, forbidden libraries, "
-    "unacceptable shortcuts. Leave blank to skip."
-)
-_CTX_KEY_LIBRARIES = (
-    "List important packages, their roles, and gotchas. "
-    "Include bespoke/internal libraries Claude might not know about. "
-    "Leave blank to skip."
-)
-_CTX_CUSTOM_AGENT = (
-    "Define a project-specific agent beyond the core scientific ones\n"
-    "  (hypothesis-explorer, experiment-runner,\n"
-    "   literature-reviewer, result-validator).\n"
-    "  Describe its purpose and what it should do. Parallax wraps it\n"
-    "  in a generic agent definition; refinement polishes it.\n"
-    '  Example: "data-pipeline-validator -- checks ETL outputs for\n'
-    '  schema drift and NaN propagation"'
-)
 
 # ---------------------------------------------------------------------------
 # Editor-based input
 # ---------------------------------------------------------------------------
 
 
-def _open_editor(editor: str, prompt_label: str) -> str:
-    """Open editor for multi-line input. Falls back to single-line prompt."""
+_PHASE_B_TEMPLATE = """\
+<!-- Parallax project context — fill in the sections below.
+     Delete or leave empty any sections you want to skip.
+     Lines inside <!-- --> comments are instructions and will be stripped. -->
+
+## Science Requirements
+<!-- What is this project trying to achieve scientifically?
+     Describe objectives, key phenomena, methods. -->
+
+
+## Preferred Patterns
+<!-- What should Claude favor? Coding style, error handling,
+     documentation level, testing philosophy. -->
+
+
+## Outlawed Patterns
+<!-- What must Claude avoid? Anti-patterns, forbidden libraries,
+     unacceptable shortcuts. -->
+
+
+## Key Libraries
+<!-- Important packages, their roles, and gotchas.
+     Include bespoke/internal libraries Claude might not know about. -->
+
+
+## Custom Agent
+<!-- Optional: define a project-specific agent beyond the core ones
+     (hypothesis-explorer, experiment-runner, literature-reviewer,
+      result-validator, paper-writer, presentation-writer).
+     Describe its purpose and what it should do.
+     Example: "data-pipeline-validator -- checks ETL outputs for
+     schema drift and NaN propagation" -->
+
+"""
+
+# Section keys in template order, mapping heading -> config field name
+_PHASE_B_SECTIONS: list[tuple[str, str]] = [
+    ("Science Requirements", "science_requirements"),
+    ("Preferred Patterns", "preferred_patterns"),
+    ("Outlawed Patterns", "outlawed_patterns"),
+    ("Key Libraries", "key_libraries"),
+    ("Custom Agent", "custom_agent_description"),
+]
+
+
+def _strip_html_comments(text: str) -> str:
+    """Remove <!-- ... --> blocks from text."""
+    import re
+
+    return re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+
+
+def _parse_phase_b(text: str) -> dict[str, str]:
+    """Parse editor output into field dict keyed by config field name."""
+    import re
+
+    results: dict[str, str] = {}
+    # Split on ## headings
+    heading_re = re.compile(r"^##\s+(.+)$", re.MULTILINE)
+    heading_to_field = {h: f for h, f in _PHASE_B_SECTIONS}
+
+    parts = heading_re.split(text)
+    # parts = [preamble, heading1, body1, heading2, body2, ...]
+    i = 1
+    while i < len(parts) - 1:
+        heading = parts[i].strip()
+        body = parts[i + 1]
+        field = heading_to_field.get(heading)
+        if field is not None:
+            cleaned = _strip_html_comments(body).strip()
+            results[field] = cleaned
+        i += 2
+
+    # Fill missing fields with empty string
+    for _, field in _PHASE_B_SECTIONS:
+        if field not in results:
+            results[field] = ""
+    return results
+
+
+def _open_phase_b_editor(editor: str) -> dict[str, str]:
+    """Open a single editor with all Phase B sections. Returns parsed fields."""
     with tempfile.NamedTemporaryFile(
         mode="w",
         suffix=".md",
-        prefix=f"parallax_{prompt_label}_",
+        prefix="parallax_project_context_",
         delete=False,
     ) as f:
-        f.write(
-            f"# {prompt_label}\n# Lines starting with # are kept.\n# "
-            "Save and close editor when done. Empty file = skip.\n"
-        )
+        f.write(_PHASE_B_TEMPLATE)
         tmppath = f.name
 
     try:
-        subprocess.run(
-            [editor, tmppath],
-            check=True,
-        )
+        subprocess.run([editor, tmppath], check=True)
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
         typer.echo(
             f"  Warning: editor '{editor}' failed ({exc}). "
             "Falling back to single-line input."
         )
         os.unlink(tmppath)
-        result: str = typer.prompt(f"  {prompt_label} (single line)", default="")
-        return result
+        return _phase_b_fallback_prompts()
 
     try:
         text = Path(tmppath).read_text(encoding="utf-8")
     finally:
         os.unlink(tmppath)
-    return text.strip()
+    return _parse_phase_b(text)
+
+
+def _phase_b_fallback_prompts() -> dict[str, str]:
+    """Fallback: prompt each field on a single line if editor fails."""
+    results: dict[str, str] = {}
+    prompts = [
+        ("science_requirements", "Science requirements (single line)"),
+        ("preferred_patterns", "Preferred patterns (single line)"),
+        ("outlawed_patterns", "Outlawed patterns (single line)"),
+        ("key_libraries", "Key libraries (single line)"),
+        ("custom_agent_description", "Custom agent description (single line)"),
+    ]
+    for field, label in prompts:
+        val: str = typer.prompt(f"  {label}", default="")
+        results[field] = val.strip()
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -190,17 +252,21 @@ def _ask_choice(
 
 
 def run_interview(
-    *, yes: bool = False, token_tier_override: str | None = None
+    *,
+    yes: bool = False,
+    token_tier_override: str | None = None,
+    target: Path | None = None,
 ) -> ProjectConfig:
     """Run the structured interview, returning a ProjectConfig.
 
     If yes=True, skip questions with defaults. Still prompt required fields.
     token_tier_override: if set from CLI flag, skip the token tier question.
+    target: if set, use its name as default project name instead of cwd.
     """
     typer.echo("Parallax project initialization\n")
 
     # Detect dirname for default project name
-    default_name = Path.cwd().name
+    default_name = target.name if target is not None else Path.cwd().name
 
     # Phase A: core questions
     if yes:
@@ -287,20 +353,12 @@ def run_interview(
             default_editor = os.environ.get("EDITOR", "vim")
             editor = _ask_text("Preferred editor", _CTX_EDITOR, default=default_editor)
 
-            typer.echo(f"\n  {_CTX_SCIENCE_REQUIREMENTS}")
-            science_requirements = _open_editor(editor, "science_requirements")
-
-            typer.echo(f"\n  {_CTX_PREFERRED_PATTERNS}")
-            preferred_patterns = _open_editor(editor, "preferred_patterns")
-
-            typer.echo(f"\n  {_CTX_OUTLAWED_PATTERNS}")
-            outlawed_patterns = _open_editor(editor, "outlawed_patterns")
-
-            typer.echo(f"\n  {_CTX_KEY_LIBRARIES}")
-            key_libraries = _open_editor(editor, "key_libraries")
-
-            typer.echo(f"\n  {_CTX_CUSTOM_AGENT}")
-            custom_agent_description = _open_editor(editor, "custom_agent")
+            phase_b = _open_phase_b_editor(editor)
+            science_requirements = phase_b["science_requirements"]
+            preferred_patterns = phase_b["preferred_patterns"]
+            outlawed_patterns = phase_b["outlawed_patterns"]
+            key_libraries = phase_b["key_libraries"]
+            custom_agent_description = phase_b["custom_agent_description"]
 
     return ProjectConfig(
         project_name=project_name,

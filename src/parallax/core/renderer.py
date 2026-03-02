@@ -276,6 +276,14 @@ ${custom_agent_description}
 """
 
 
+def _has_custom_agent(config: ProjectConfig) -> bool:
+    """True if custom_agent_description has content beyond # comment lines."""
+    return any(
+        line.strip() and not line.strip().startswith("#")
+        for line in config.custom_agent_description.strip().splitlines()
+    )
+
+
 def render_custom_agent(config: ProjectConfig) -> str:
     """Render a custom agent from user description."""
     return Template(_CUSTOM_AGENT_TEMPLATE).safe_substitute(
@@ -314,7 +322,7 @@ def _output_paths(
         # Agents are generated alongside skills
         for a in _AGENT_NAMES:
             paths.append(target / ".claude" / "agents" / _agent_output_name(a))
-        if config.custom_agent_description:
+        if _has_custom_agent(config):
             paths.append(target / ".claude" / "agents" / "custom.md")
     return paths
 
@@ -399,7 +407,7 @@ def render_project(
             for agent_name in _AGENT_NAMES:
                 out_file = agents_dir / _agent_output_name(agent_name)
                 files[out_file] = render_agent(agent_name, config)
-            if config.custom_agent_description:
+            if _has_custom_agent(config):
                 files[agents_dir / "custom.md"] = render_custom_agent(config)
 
         # Write all to temp

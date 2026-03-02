@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from parallax.cli import app
+from parallax.cli import _CACHE_REL, app
 from parallax.core.config import ProjectConfig
 
 runner = CliRunner()
@@ -61,13 +61,14 @@ class TestInitCommand:
         assert "Parallax initialized" in result.output
         assert "CLAUDE.md" in result.output
 
-    def test_init_conflict_no_force(self, tmp_path: Path) -> None:
+    def test_init_conflict_early_detection(self, tmp_path: Path) -> None:
+        """Conflict detected BEFORE interview runs."""
         (tmp_path / "PARALLAX.md").write_text("existing")
-        cfg = _dummy_config()
-        with patch("parallax.cli.run_interview", return_value=cfg):
+        with patch("parallax.cli.run_interview") as mock_interview:
             result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
         assert result.exit_code == 1
         assert "already Parallax-managed" in result.output
+        mock_interview.assert_not_called()
 
     def test_init_force_overwrites(self, tmp_path: Path) -> None:
         (tmp_path / "PARALLAX.md").write_text("old")
@@ -94,3 +95,67 @@ class TestInitCommand:
         assert result.exit_code == 0
         assert not (tmp_path / ".claude" / "settings.json").exists()
         assert not (tmp_path / ".claude" / "hooks").exists()
+
+
+class TestCacheFlow:
+    def test_cache_created_and_deleted(self, tmp_path: Path) -> None:
+        """Cache saved after interview, deleted after all steps succeed."""
+        cfg = _dummy_config()
+        cache = tmp_path / _CACHE_REL
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
+        assert result.exit_code == 0
+        assert not cache.exists()
+
+    def test_cache_preserved_on_refinement_failure(self, tmp_path: Path) -> None:
+        """Cache kept when refinement fails so user can retry."""
+        cfg = _dummy_config()
+        cache = tmp_path / _CACHE_REL
+        with (
+            patch("parallax.cli.run_interview", return_value=cfg),
+            patch("parallax.cli.run_refinement", return_value=False),
+        ):
+            result = runner.invoke(app, ["init", "-t", str(tmp_path)])
+        assert result.exit_code == 0
+        assert cache.exists()
+
+    def test_keep_cache_flag(self, tmp_path: Path) -> None:
+        """--keep-cache preserves cache file after init."""
+        cfg = _dummy_config()
+        cache = tmp_path / _CACHE_REL
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "--keep-cache"]
+            )
+        assert result.exit_code == 0
+        assert cache.exists()
+
+    def test_resume_from_cache(self, tmp_path: Path) -> None:
+        """If cache exists and user confirms, skip interview."""
+        cfg = _dummy_config()
+        cache = tmp_path / _CACHE_REL
+        cfg.to_json(cache)
+        with (
+            patch("parallax.cli.run_interview") as mock_interview,
+            patch("parallax.cli.typer.confirm", return_value=True),
+        ):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "-f"]
+            )
+        assert result.exit_code == 0
+        mock_interview.assert_not_called()
+
+    def test_decline_cache_runs_interview(self, tmp_path: Path) -> None:
+        """If user declines cache, interview runs fresh."""
+        cfg = _dummy_config()
+        cache = tmp_path / _CACHE_REL
+        cfg.to_json(cache)
+        with (
+            patch("parallax.cli.run_interview", return_value=cfg) as mock_interview,
+            patch("parallax.cli.typer.confirm", return_value=False),
+        ):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "-f"]
+            )
+        assert result.exit_code == 0
+        mock_interview.assert_called_once()
