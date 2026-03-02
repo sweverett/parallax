@@ -5,12 +5,27 @@ from __future__ import annotations
 import importlib.resources
 import shutil
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from parallax.core.config import ProjectConfig, TokenTier
+
+
+# ---------------------------------------------------------------------------
+# Result type
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MergeResult:
+    """Outcome of render_project: categorises written files."""
+
+    written: list[Path] = field(default_factory=list)
+    suffixed: list[Path] = field(default_factory=list)
+    skipped: list[Path] = field(default_factory=list)
 
 # ---------------------------------------------------------------------------
 # Template loading
@@ -340,6 +355,146 @@ def check_conflicts(
 
 
 # ---------------------------------------------------------------------------
+# Content rendering (pure — no I/O)
+# ---------------------------------------------------------------------------
+
+
+def _render_all_content(config: ProjectConfig) -> dict[str, str]:
+    """Render all output content keyed by relative path string. Pure function."""
+    files: dict[str, str] = {
+        "CLAUDE.md": render_claude_md(config),
+        "PARALLAX.md": render_parallax_md(config),
+        "CONSTITUTION.md": render_constitution_md(config),
+    }
+
+    if config.generate_hooks:
+        files[".claude/settings.json"] = render_settings_json(config)
+        for hook_name in _HOOK_NAMES:
+            files[f".claude/hooks/{hook_name}"] = _load_hook_script(hook_name)
+
+    if config.generate_skills:
+        for skill_name in _SKILL_NAMES:
+            out_name = (
+                skill_name.replace("_", "-") if "_" in skill_name else skill_name
+            )
+            files[f".claude/skills/{out_name}/SKILL.md"] = render_skill(
+                skill_name, config
+            )
+        for agent_name in _AGENT_NAMES:
+            out_file = f".claude/agents/{_agent_output_name(agent_name)}"
+            files[out_file] = render_agent(agent_name, config)
+        if _has_custom_agent(config):
+            files[".claude/agents/custom.md"] = render_custom_agent(config)
+
+    return files
+
+
+# ---------------------------------------------------------------------------
+# Suffix / classify infrastructure (merge mode)
+# ---------------------------------------------------------------------------
+
+
+def _suffix_path(path: Path) -> Path:
+    """Insert `.parallax` before the file extension.
+
+    CLAUDE.md -> CLAUDE.parallax.md
+    test_guard.py -> test_guard.parallax.py
+    settings.json -> settings.parallax.json
+    """
+    return path.with_suffix(f".parallax{path.suffix}")
+
+
+def classify_outputs(
+    config: ProjectConfig,
+    target: Path,
+) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    """Render all content and classify against existing target files.
+
+    Returns (new, conflicting, identical):
+      - new: {rel_path: content} — files that don't exist in target
+      - conflicting: {rel_path: content} — files that exist and differ
+      - identical: [rel_path, ...] — files that exist and match
+    """
+    all_content = _render_all_content(config)
+    new: dict[str, str] = {}
+    conflicting: dict[str, str] = {}
+    identical: list[str] = []
+
+    for rel_path, content in all_content.items():
+        existing = target / rel_path
+        if not existing.exists():
+            new[rel_path] = content
+        elif existing.read_text(encoding="utf-8") == content:
+            identical.append(rel_path)
+        else:
+            conflicting[rel_path] = content
+
+    return new, conflicting, identical
+
+
+# ---------------------------------------------------------------------------
+# Merge guide
+# ---------------------------------------------------------------------------
+
+
+def _write_merge_guide(
+    target: Path,
+    result: MergeResult,
+    *,
+    new_paths: list[str] | None = None,
+    identical_paths: list[str] | None = None,
+) -> Path:
+    """Write .parallax/merge-guide.md describing the merge state."""
+    guide_dir = target / ".parallax"
+    guide_dir.mkdir(parents=True, exist_ok=True)
+    guide_path = guide_dir / "merge-guide.md"
+
+    lines = [
+        "# Parallax Merge Guide\n",
+        "\n",
+        "Parallax was initialized into a repo with existing configuration.\n",
+        "Your existing files were **not modified**. Parallax versions were written\n",
+        "with a `.parallax` suffix alongside originals that differ.\n",
+        "\n",
+    ]
+
+    if result.suffixed:
+        lines.append("## Files to merge\n\n")
+        lines.append(
+            "Each `.parallax` file is Parallax's generated version. "
+            "Merge its content into the original, then delete it.\n\n"
+        )
+        for sf in sorted(result.suffixed):
+            rel = sf.relative_to(target)
+            # Derive original path by stripping .parallax from stem
+            orig = rel.parent / rel.name.replace(".parallax", "")
+            lines.append(f"- `{orig}` <-- `{rel}`\n")
+        lines.append("\n")
+
+    if new_paths:
+        lines.append("## New files (no merge needed)\n\n")
+        for np in sorted(new_paths):
+            lines.append(f"- `{np}`\n")
+        lines.append("\n")
+
+    if identical_paths:
+        lines.append("## Identical files (skipped)\n\n")
+        for ip in sorted(identical_paths):
+            lines.append(f"- `{ip}`\n")
+        lines.append("\n")
+
+    lines.append("## How to complete the merge\n\n")
+    lines.append("Option A: Run `parallax refine` to launch a Claude session ")
+    lines.append("that reads this guide and assists with merging.\n\n")
+    lines.append("Option B: Manually merge each pair listed above, then delete ")
+    lines.append("the `.parallax` files.\n\n")
+    lines.append("When done, delete the `.parallax/` directory.\n")
+
+    guide_path.write_text("".join(lines), encoding="utf-8")
+    return guide_path
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -349,11 +504,19 @@ def render_project(
     target: Path,
     *,
     force: bool = False,
-) -> list[Path]:
-    """Render all output files atomically. Returns list of written paths.
+    merge: bool = False,
+) -> MergeResult:
+    """Render all output files atomically. Returns MergeResult.
 
-    Raises FileExistsError if conflicts detected and force=False.
+    merge=False (default): standard fresh-init. Raises FileExistsError on conflicts.
+    merge=True: writes new files normally, conflicting files with .parallax suffix,
+                skips identical files. Writes .parallax/merge-guide.md.
     """
+    if merge:
+        return _render_merge(config, target)
+
+    # --- Standard (non-merge) path ---
+
     # Check for already-initialized project
     parallax_md = target / "PARALLAX.md"
     if parallax_md.exists() and not force:
@@ -367,65 +530,85 @@ def render_project(
         msg = f"Files already exist: {names}. Use `-f` to overwrite."
         raise FileExistsError(msg)
 
+    all_content = _render_all_content(config)
+
     # Render to temp dir, then move atomically
     written: list[Path] = []
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
 
-        # Core files
-        files: dict[Path, str] = {
-            tmp / "CLAUDE.md": render_claude_md(config),
-            tmp / "PARALLAX.md": render_parallax_md(config),
-            tmp / "CONSTITUTION.md": render_constitution_md(config),
-        }
-
-        # Hooks
-        if config.generate_hooks:
-            claude_dir = tmp / ".claude"
-            claude_dir.mkdir(parents=True, exist_ok=True)
-            files[claude_dir / "settings.json"] = render_settings_json(config)
-            hooks_dir = claude_dir / "hooks"
-            hooks_dir.mkdir(parents=True, exist_ok=True)
-            for hook_name in _HOOK_NAMES:
-                files[hooks_dir / hook_name] = _load_hook_script(hook_name)
-
-        # Skills
-        if config.generate_skills:
-            skills_dir = tmp / ".claude" / "skills"
-            for skill_name in _SKILL_NAMES:
-                # session_start uses hyphen in output dir name
-                out_name = (
-                    skill_name.replace("_", "-") if "_" in skill_name else skill_name
-                )
-                skill_subdir = skills_dir / out_name
-                skill_subdir.mkdir(parents=True, exist_ok=True)
-                files[skill_subdir / "SKILL.md"] = render_skill(skill_name, config)
-
-            # Agents (generated alongside skills — agents require skills)
-            agents_dir = tmp / ".claude" / "agents"
-            agents_dir.mkdir(parents=True, exist_ok=True)
-            for agent_name in _AGENT_NAMES:
-                out_file = agents_dir / _agent_output_name(agent_name)
-                files[out_file] = render_agent(agent_name, config)
-            if _has_custom_agent(config):
-                files[agents_dir / "custom.md"] = render_custom_agent(config)
-
         # Write all to temp
-        for path, content in files.items():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
+        for rel_path, content in all_content.items():
+            tmp_file = tmp / rel_path
+            tmp_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp_file.write_text(content, encoding="utf-8")
 
         # Move to target
-        for tmp_path in files:
-            rel = tmp_path.relative_to(tmp)
-            dest = target / rel
+        for rel_path in all_content:
+            tmp_file = tmp / rel_path
+            dest = target / rel_path
             dest.parent.mkdir(parents=True, exist_ok=True)
             try:
-                shutil.move(str(tmp_path), str(dest))
+                shutil.move(str(tmp_file), str(dest))
             except OSError as exc:
                 succeeded = [str(p.relative_to(target)) for p in written]
-                msg = f"Failed to write {rel}. Files already written: {succeeded}"
+                msg = f"Failed to write {rel_path}. Files already written: {succeeded}"
                 raise OSError(msg) from exc
             written.append(dest)
 
-    return written
+    return MergeResult(written=written)
+
+
+def _render_merge(config: ProjectConfig, target: Path) -> MergeResult:
+    """Merge-mode rendering: suffix conflicts, skip identical."""
+    new_content, conflicting_content, identical = classify_outputs(config, target)
+
+    written: list[Path] = []
+    suffixed: list[Path] = []
+    skipped = [target / ip for ip in identical]
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+
+        # Stage new files
+        for rel_path, content in new_content.items():
+            tmp_file = tmp / rel_path
+            tmp_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp_file.write_text(content, encoding="utf-8")
+
+        # Stage conflicting files with suffix
+        for rel_path, content in conflicting_content.items():
+            suf = _suffix_path(Path(rel_path))
+            tmp_file = tmp / str(suf)
+            tmp_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp_file.write_text(content, encoding="utf-8")
+
+        # Move new files to target
+        for rel_path in new_content:
+            tmp_file = tmp / rel_path
+            dest = target / rel_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(tmp_file), str(dest))
+            written.append(dest)
+
+        # Move suffixed files to target
+        for rel_path in conflicting_content:
+            suf = _suffix_path(Path(rel_path))
+            tmp_file = tmp / str(suf)
+            dest = target / str(suf)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(tmp_file), str(dest))
+            suffixed.append(dest)
+
+    result = MergeResult(written=written, suffixed=suffixed, skipped=skipped)
+
+    # Write merge guide if there are suffixed files
+    if suffixed:
+        _write_merge_guide(
+            target,
+            result,
+            new_paths=[str(p.relative_to(target)) for p in written],
+            identical_paths=identical,
+        )
+
+    return result

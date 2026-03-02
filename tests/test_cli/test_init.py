@@ -159,3 +159,120 @@ class TestCacheFlow:
             )
         assert result.exit_code == 0
         mock_interview.assert_called_once()
+
+
+class TestMergeMode:
+    def test_merge_mode_detected(self, tmp_path: Path) -> None:
+        """Existing CLAUDE.md (no PARALLAX.md) triggers merge mode."""
+        (tmp_path / "CLAUDE.md").write_text("# Existing project")
+        cfg = _dummy_config()
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "-y"]
+            )
+        assert result.exit_code == 0
+        assert "merge" in result.output.lower()
+        # Existing file untouched
+        assert (tmp_path / "CLAUDE.md").read_text() == "# Existing project"
+        # Suffixed file created
+        assert (tmp_path / "CLAUDE.parallax.md").exists()
+
+    def test_merge_mode_shows_conflicts(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        cfg = _dummy_config()
+        with (
+            patch("parallax.cli.run_interview", return_value=cfg),
+            patch("parallax.cli.typer.confirm", return_value=True),
+        ):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine"]
+            )
+        assert result.exit_code == 0
+        assert "CLAUDE.md" in result.output
+        assert "conflict" in result.output.lower()
+
+    def test_merge_mode_yes_skips_confirm(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        cfg = _dummy_config()
+        with (
+            patch("parallax.cli.run_interview", return_value=cfg),
+            # No confirm mock needed -- -y should skip it
+        ):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "-y"]
+            )
+        assert result.exit_code == 0
+
+    def test_merge_mode_force_skips_merge(self, tmp_path: Path) -> None:
+        """Force overwrites normally, no suffixes."""
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        cfg = _dummy_config()
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "-f", "--skip-refine"]
+            )
+        assert result.exit_code == 0
+        # Force overwrites, so no .parallax suffix
+        assert not (tmp_path / "CLAUDE.parallax.md").exists()
+        assert "test-project" in (tmp_path / "CLAUDE.md").read_text()
+
+    def test_merge_mode_offers_claude_session(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        cfg = _dummy_config()
+        with (
+            patch("parallax.cli.run_interview", return_value=cfg),
+            patch("parallax.cli.typer.confirm", return_value=False),
+            patch("parallax.cli.run_refinement", return_value=True) as mock_refine,
+        ):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path)]
+            )
+        assert result.exit_code == 0
+        # Should not have launched refinement since user declined
+        mock_refine.assert_not_called()
+
+    def test_merge_mode_skip_refine_no_session(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        cfg = _dummy_config()
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "-y"]
+            )
+        assert result.exit_code == 0
+        assert "merge-guide.md" in result.output
+
+    def test_merge_guide_path_printed(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        cfg = _dummy_config()
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "-y"]
+            )
+        assert result.exit_code == 0
+        assert "merge-guide.md" in result.output
+
+    def test_force_after_merge_overwrites_but_leaves_suffixed(
+        self, tmp_path: Path
+    ) -> None:
+        """Merge then force: force overwrites originals, .parallax files survive."""
+        cfg = _dummy_config()
+        # Step 1: merge mode -- creates .parallax suffixed files
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            r1 = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "-y"]
+            )
+        assert r1.exit_code == 0
+        assert (tmp_path / "CLAUDE.parallax.md").exists()
+        assert (tmp_path / "CLAUDE.md").read_text() == "# Existing"
+
+        # Step 2: force reinit -- overwrites everything, no merge
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            r2 = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "-f", "--skip-refine"]
+            )
+        assert r2.exit_code == 0
+        # CLAUDE.md now has generated content
+        assert "test-project" in (tmp_path / "CLAUDE.md").read_text()
+        # .parallax file from previous merge still on disk (force doesn't clean up)
+        assert (tmp_path / "CLAUDE.parallax.md").exists()

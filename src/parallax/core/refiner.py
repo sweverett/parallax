@@ -33,11 +33,36 @@ Strip all refinement comment blocks (<!-- PARALLAX REFINEMENT: ... -->) when don
 Report what was changed in a brief summary.
 """
 
+_MERGE_REFINEMENT_PROMPT = """\
+You are refining a Parallax project initialized into a repo with existing configuration.
+
+Read .parallax/merge-guide.md for the full list of file pairs and merge instructions.
+Then for each pair:
+1. Read BOTH the original and the .parallax version
+2. Synthesize a single merged version that:
+   - Preserves existing project-specific content, structure, and tone
+   - Integrates Parallax scientific rigor rules, workflow conventions, and references
+   - For skills: merge capabilities, keeping the richer protocol
+   - For settings.json: merge hook configs (union of hooks)
+   - Resolves conflicts favoring the more specific/detailed version
+3. Write merged result to the ORIGINAL filename
+4. Delete the .parallax suffixed file after each successful merge
+5. Review PARALLAX.md and CONSTITUTION.md for consistency with merged CLAUDE.md
+
+Strip refinement comment blocks (<!-- PARALLAX REFINEMENT: ... -->) when done.
+Report what was changed.
+"""
+
 
 _BACKGROUND_TIMEOUT = 300
 
 
-def run_refinement(target: Path, *, background: bool = False) -> bool:
+def run_refinement(
+    target: Path,
+    *,
+    background: bool = False,
+    merge_mode: bool = False,
+) -> bool:
     """Invoke Claude CLI for post-init synthesis. Returns True if successful.
 
     Default: interactive session (user sees and controls Claude).
@@ -51,17 +76,19 @@ def run_refinement(target: Path, *, background: bool = False) -> bool:
         )
         return False
 
+    prompt = _MERGE_REFINEMENT_PROMPT if merge_mode else _REFINEMENT_PROMPT
+
     if background:
-        return _run_background(target)
-    return _run_interactive(target)
+        return _run_background(target, prompt)
+    return _run_interactive(target, prompt)
 
 
-def _run_interactive(target: Path) -> bool:
+def _run_interactive(target: Path, prompt: str) -> bool:
     """Launch interactive Claude session with refinement prompt."""
     typer.echo("Opening Claude Code session for refinement...")
     try:
         result = subprocess.run(
-            ["claude", "--permission-mode", "plan", _REFINEMENT_PROMPT],
+            ["claude", "--permission-mode", "plan", prompt],
             cwd=target,
         )
     except FileNotFoundError:
@@ -77,12 +104,12 @@ def _run_interactive(target: Path) -> bool:
     return True
 
 
-def _run_background(target: Path) -> bool:
+def _run_background(target: Path, prompt: str) -> bool:
     """Run refinement as headless subprocess with timeout."""
     typer.echo("Running auto-refinement in background...")
     try:
         subprocess.run(
-            ["claude", "-p", _REFINEMENT_PROMPT],
+            ["claude", "-p", prompt],
             check=True,
             timeout=_BACKGROUND_TIMEOUT,
             cwd=target,

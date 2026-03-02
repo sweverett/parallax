@@ -1,6 +1,7 @@
 """Tests for parallax refine command."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -21,12 +22,35 @@ _REFINEMENT_BLOCK = (
 )
 
 
-class TestRefineInstructions:
-    def test_prints_instructions(self) -> None:
-        result = runner.invoke(app, ["refine"])
+class TestRefineInteractive:
+    def test_no_flag_launches_interactive(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        with patch("parallax.cli.run_refinement", return_value=True) as mock_refine:
+            result = runner.invoke(app, ["refine"])
         assert result.exit_code == 0
-        assert "refinement process" in result.output
-        assert "parallax refine --done" in result.output
+        mock_refine.assert_called_once_with(tmp_path, merge_mode=False)
+
+    def test_target_dir(self, tmp_path: Path) -> None:
+        with patch("parallax.cli.run_refinement", return_value=True) as mock_refine:
+            result = runner.invoke(app, ["refine", "-t", str(tmp_path)])
+        assert result.exit_code == 0
+        mock_refine.assert_called_once_with(tmp_path, merge_mode=False)
+
+    def test_detects_merge_guide(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        guide_dir = tmp_path / ".parallax"
+        guide_dir.mkdir()
+        (guide_dir / "merge-guide.md").write_text("# Merge Guide\n")
+
+        with patch("parallax.cli.run_refinement", return_value=True) as mock_refine:
+            result = runner.invoke(app, ["refine"])
+        assert result.exit_code == 0
+        assert "Merge guide detected" in result.output
+        mock_refine.assert_called_once_with(tmp_path, merge_mode=True)
 
 
 class TestRefineDone:
@@ -50,6 +74,13 @@ class TestRefineDone:
         # Verify content preserved
         assert "# Project" in claude_md.read_text()
         assert "# Workflow" in parallax_md.read_text()
+
+    def test_done_with_target_dir(self, tmp_path: Path) -> None:
+        claude_md = tmp_path / "CLAUDE.md"
+        claude_md.write_text(_REFINEMENT_BLOCK + "# Project\n")
+        result = runner.invoke(app, ["refine", "--done", "-t", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "PARALLAX REFINEMENT" not in claude_md.read_text()
 
     def test_no_blocks_found(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

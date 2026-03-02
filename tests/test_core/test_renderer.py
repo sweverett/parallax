@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 
 from parallax.core.renderer import (
+    _suffix_path,
     check_conflicts,
+    classify_outputs,
     model_for_agent,
     render_agent,
     render_claude_md,
@@ -322,8 +324,8 @@ class TestConflicts:
 
 class TestRenderProject:
     def test_creates_all_files(self, tmp_path: Path) -> None:
-        written = render_project(make_config(), tmp_path)
-        names = {p.relative_to(tmp_path).as_posix() for p in written}
+        result = render_project(make_config(), tmp_path)
+        names = {p.relative_to(tmp_path).as_posix() for p in result.written}
         assert "CLAUDE.md" in names
         assert "PARALLAX.md" in names
         assert "CONSTITUTION.md" in names
@@ -345,15 +347,15 @@ class TestRenderProject:
         assert ".claude/agents/presentation-writer.md" in names
 
     def test_no_skills_when_disabled(self, tmp_path: Path) -> None:
-        written = render_project(make_config(generate_skills=False), tmp_path)
-        names = {p.relative_to(tmp_path).as_posix() for p in written}
+        result = render_project(make_config(generate_skills=False), tmp_path)
+        names = {p.relative_to(tmp_path).as_posix() for p in result.written}
         assert not any("skills/" in n for n in names)
         assert not any("agents/" in n for n in names)
 
     def test_no_hooks_when_disabled(self, tmp_path: Path) -> None:
-        written = render_project(make_config(generate_hooks=False), tmp_path)
-        names = {p.relative_to(tmp_path).as_posix() for p in written}
-        assert "settings.json" not in {p.name for p in written}
+        result = render_project(make_config(generate_hooks=False), tmp_path)
+        names = {p.relative_to(tmp_path).as_posix() for p in result.written}
+        assert "settings.json" not in {p.name for p in result.written}
         assert not any(".claude/hooks/" in n for n in names)
 
     def test_already_initialized_error(self, tmp_path: Path) -> None:
@@ -413,6 +415,15 @@ class TestRenderProject:
         render_project(make_config(), tmp_path)
         assert not (tmp_path / ".claude" / "agents" / "custom.md").exists()
 
+    def test_returns_merge_result(self, tmp_path: Path) -> None:
+        result = render_project(make_config(), tmp_path)
+        assert hasattr(result, "written")
+        assert hasattr(result, "suffixed")
+        assert hasattr(result, "skipped")
+        assert len(result.written) > 0
+        assert result.suffixed == []
+        assert result.skipped == []
+
 
 # ---------------------------------------------------------------------------
 # Template edge cases
@@ -441,3 +452,138 @@ class TestEdgeCases:
         )
         assert "high-energy particle physics" in out
         assert "${" not in out
+
+
+# ---------------------------------------------------------------------------
+# Suffix infrastructure
+# ---------------------------------------------------------------------------
+
+
+class TestSuffixPath:
+    def test_suffix_path_markdown(self) -> None:
+        assert _suffix_path(Path("CLAUDE.md")) == Path("CLAUDE.parallax.md")
+
+    def test_suffix_path_python(self) -> None:
+        assert _suffix_path(Path("test_guard.py")) == Path("test_guard.parallax.py")
+
+    def test_suffix_path_json(self) -> None:
+        assert _suffix_path(Path("settings.json")) == Path("settings.parallax.json")
+
+    def test_suffix_path_nested(self) -> None:
+        p = Path(".claude/skills/hypothesis/SKILL.md")
+        expected = Path(".claude/skills/hypothesis/SKILL.parallax.md")
+        assert _suffix_path(p) == expected
+
+
+# ---------------------------------------------------------------------------
+# Classify outputs
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyOutputs:
+    def test_classify_all_new(self, tmp_path: Path) -> None:
+        new, conflicting, identical = classify_outputs(make_config(), tmp_path)
+        assert len(new) > 0
+        assert len(conflicting) == 0
+        assert len(identical) == 0
+
+    def test_classify_one_conflict(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing project")
+        new, conflicting, identical = classify_outputs(make_config(), tmp_path)
+        assert "CLAUDE.md" in conflicting
+        assert "CLAUDE.md" not in new
+
+    def test_classify_identical_skip(self, tmp_path: Path) -> None:
+        # Render once to get exact content
+        cfg = make_config()
+        content = render_claude_md(cfg)
+        (tmp_path / "CLAUDE.md").write_text(content)
+        new, conflicting, identical = classify_outputs(cfg, tmp_path)
+        assert "CLAUDE.md" in identical
+        assert "CLAUDE.md" not in new
+        assert "CLAUDE.md" not in conflicting
+
+    def test_classify_mixed(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        # Write one file with different content (conflict)
+        (tmp_path / "CLAUDE.md").write_text("# Different")
+        # Write one file with identical content (skip)
+        content = render_constitution_md(cfg)
+        (tmp_path / "CONSTITUTION.md").write_text(content)
+        new, conflicting, identical = classify_outputs(cfg, tmp_path)
+        assert "CLAUDE.md" in conflicting
+        assert "CONSTITUTION.md" in identical
+        # PARALLAX.md should be new
+        assert "PARALLAX.md" in new
+
+
+# ---------------------------------------------------------------------------
+# Merge mode rendering
+# ---------------------------------------------------------------------------
+
+
+class TestMergeMode:
+    def test_merge_writes_new_normally(self, tmp_path: Path) -> None:
+        # Put an existing CLAUDE.md so merge mode has something to suffix
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        result = render_project(make_config(), tmp_path, merge=True)
+        # PARALLAX.md should be new (didn't exist)
+        written_names = {p.name for p in result.written}
+        assert "PARALLAX.md" in written_names
+        assert (tmp_path / "PARALLAX.md").exists()
+
+    def test_merge_suffixes_conflicts(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        result = render_project(make_config(), tmp_path, merge=True)
+        suffixed_names = {p.name for p in result.suffixed}
+        assert "CLAUDE.parallax.md" in suffixed_names
+        assert (tmp_path / "CLAUDE.parallax.md").exists()
+
+    def test_merge_skips_identical(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        content = render_constitution_md(cfg)
+        (tmp_path / "CONSTITUTION.md").write_text(content)
+        result = render_project(cfg, tmp_path, merge=True)
+        skipped_names = {p.name for p in result.skipped}
+        assert "CONSTITUTION.md" in skipped_names
+        # Should NOT have written a .parallax version
+        assert not (tmp_path / "CONSTITUTION.parallax.md").exists()
+
+    def test_merge_result_categories(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        (tmp_path / "CLAUDE.md").write_text("# Different")
+        content = render_constitution_md(cfg)
+        (tmp_path / "CONSTITUTION.md").write_text(content)
+        result = render_project(cfg, tmp_path, merge=True)
+        assert len(result.written) > 0
+        assert len(result.suffixed) > 0
+        assert len(result.skipped) > 0
+
+    def test_merge_never_touches_originals(self, tmp_path: Path) -> None:
+        original_content = "# My existing CLAUDE.md\nDo not modify."
+        (tmp_path / "CLAUDE.md").write_text(original_content)
+        render_project(make_config(), tmp_path, merge=True)
+        assert (tmp_path / "CLAUDE.md").read_text() == original_content
+
+    def test_merge_guide_written(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        render_project(make_config(), tmp_path, merge=True)
+        guide = tmp_path / ".parallax" / "merge-guide.md"
+        assert guide.exists()
+
+    def test_merge_guide_content(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text("# Existing")
+        cfg = make_config()
+        content = render_constitution_md(cfg)
+        (tmp_path / "CONSTITUTION.md").write_text(content)
+        render_project(cfg, tmp_path, merge=True)
+        guide = tmp_path / ".parallax" / "merge-guide.md"
+        text = guide.read_text()
+        assert "CLAUDE.parallax.md" in text
+        assert "CONSTITUTION.md" in text  # listed as identical/skipped
+        assert "parallax refine" in text
+
+    def test_merge_no_guide_when_no_conflicts(self, tmp_path: Path) -> None:
+        result = render_project(make_config(), tmp_path, merge=True)
+        assert len(result.suffixed) == 0
+        assert not (tmp_path / ".parallax" / "merge-guide.md").exists()

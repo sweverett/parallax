@@ -13,8 +13,8 @@ class TestGeneratedOutput:
         from pathlib import Path
 
         target = Path(str(tmp_path))
-        written = render_project(make_config(), target)
-        names = {p.relative_to(target).as_posix() for p in written}
+        result = render_project(make_config(), target)
+        names = {p.relative_to(target).as_posix() for p in result.written}
         expected = {
             "CLAUDE.md",
             "PARALLAX.md",

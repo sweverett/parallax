@@ -47,3 +47,10 @@ htmlcov/
 
 # ruff
 .ruff_cache/
+
+# Scratch files
+common_prompt.txt
+memory_concept.md
+original_claude_plan.bkup
+parallax_idea.md
+temp.txt

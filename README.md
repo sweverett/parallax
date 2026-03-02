@@ -93,7 +93,8 @@ parallax init --skip-refine          # skip auto-refinement
 parallax init -b                     # run refinement in background (headless)
 
 # Post-init refinement
-parallax refine                      # print refinement instructions
+parallax refine                      # launch interactive refinement session
+parallax refine -t /path/to/project  # target directory
 parallax refine --done               # strip refinement comment blocks
 
 # Post-init config changes
@@ -121,7 +122,9 @@ Layer 1 (Convention System) functional. `parallax init`, `parallax refine`, hook
 
 What exists:
 - `parallax init`: structured interview + template rendering + auto-refinement
-- `parallax refine`: post-init refinement workflow
+- Merge mode: `parallax init` into repos with existing `.claude/` files -- suffixes conflicts, never overwrites, writes merge guide
+- `parallax refine`: interactive refinement session (auto-detects merge guide for merge assistance)
+- `parallax refine --done`: strip refinement comment blocks
 - `parallax config`: post-init configuration changes (token tier)
 - Hook enforcement: test guard (blocks test weakening), lint check (ruff feedback), stop check (uncommitted work reminder)
 - Full skill definitions: /hypothesis, /handoff, /audit, /experiment, /session-start
@@ -133,7 +136,7 @@ What exists:
 What's next:
 - Layer 2: SQLite hypothesis lifecycle, git worktrees
 - Template versioning / migration
-- CI enhancements (semantic version validation, doc staleness check)
+- Semantic version validation in CI
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full backlog.
 

@@ -6,14 +6,22 @@ import contextlib
 import re
 import signal
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
 from parallax.core.config import VALID_TOKEN_TIERS, ProjectConfig
 from parallax.core.interview import run_interview
 from parallax.core.refiner import run_refinement
-from parallax.core.renderer import _MODEL_MAP, model_for_agent, render_project
+from parallax.core.renderer import (
+    _MODEL_MAP,
+    classify_outputs,
+    model_for_agent,
+    render_project,
+)
+
+if TYPE_CHECKING:
+    from parallax.core.renderer import MergeResult
 
 app = typer.Typer(
     name="parallax",
@@ -120,22 +128,52 @@ def _init_impl(
         config = run_interview(yes=yes, token_tier_override=token_tier, target=target)
         config.to_json(cache_path)
 
+    # Detect merge-mode eligibility: existing .claude/ files but no PARALLAX.md
+    merge_mode = False
+    if not force:
+        _, conflicting, _ = classify_outputs(config, target)
+        if conflicting:
+            merge_mode = True
+            if not yes:
+                typer.echo(
+                    f"\nExisting files detected ({len(conflicting)} conflict(s)):"
+                )
+                for rel_path in sorted(conflicting):
+                    typer.echo(f"  {rel_path}")
+                typer.echo(
+                    "\nMerge mode: existing files untouched, Parallax versions "
+                    "written with .parallax suffix."
+                )
+                if not typer.confirm("Proceed with merge?", default=True):
+                    raise typer.Exit(code=0)
+
     try:
-        written = render_project(config, target, force=force)
+        result = render_project(config, target, force=force, merge=merge_mode)
     except FileExistsError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    typer.echo(f"\nParallax initialized. {len(written)} files written:")
-    for path in written:
-        try:
-            rel = path.relative_to(target)
-        except ValueError:
-            rel = path
-        typer.echo(f"  {rel}")
+    _display_result(result, target, merge=merge_mode)
 
     refine_ok = True
-    if not skip_refine:
+    if merge_mode and result.suffixed:
+        if not skip_refine:
+            if yes or typer.confirm(
+                "Launch Claude to assist with merge?", default=True
+            ):
+                typer.echo("")
+                refine_ok = run_refinement(
+                    target, background=refine_background, merge_mode=True
+                )
+            else:
+                guide = target / ".parallax" / "merge-guide.md"
+                typer.echo(f"\nMerge guide: {guide}")
+                typer.echo("Run `parallax refine` later to launch merge assistance.")
+        else:
+            guide = target / ".parallax" / "merge-guide.md"
+            typer.echo(f"\nMerge guide: {guide}")
+            typer.echo("Run `parallax refine` later to launch merge assistance.")
+    elif not skip_refine:
         typer.echo("")
         refine_ok = run_refinement(target, background=refine_background)
     else:
@@ -150,6 +188,31 @@ def _init_impl(
         # Remove .parallax dir if now empty
         with contextlib.suppress(OSError):
             cache_path.parent.rmdir()
+
+
+def _display_result(result: MergeResult, target: Path, *, merge: bool) -> None:
+    """Print summary of render_project output."""
+    if merge:
+        typer.echo("\nParallax merge complete:")
+        if result.written:
+            typer.echo(f"  {len(result.written)} new file(s):")
+            for p in result.written:
+                typer.echo(f"    {p.relative_to(target)}")
+        if result.suffixed:
+            typer.echo(f"  {len(result.suffixed)} conflicting file(s) (suffixed):")
+            for p in result.suffixed:
+                typer.echo(f"    {p.relative_to(target)}")
+        if result.skipped:
+            typer.echo(f"  {len(result.skipped)} identical file(s) skipped")
+    else:
+        total = len(result.written)
+        typer.echo(f"\nParallax initialized. {total} files written:")
+        for path in result.written:
+            try:
+                rel = path.relative_to(target)
+            except ValueError:
+                rel = path
+            typer.echo(f"  {rel}")
 
 
 def _maybe_resume_cache(cache_path: Path) -> ProjectConfig | None:
@@ -170,16 +233,27 @@ def refine(
         bool,
         typer.Option("--done", "-d", help="Strip refinement comment blocks."),
     ] = False,
+    target_dir: Annotated[
+        Path | None,
+        typer.Option("--target-dir", "-t", help="Project directory."),
+    ] = None,
 ) -> None:
-    """Manage the post-init refinement process."""
+    """Launch interactive refinement or strip refinement blocks."""
+    target = (target_dir or Path.cwd()).resolve()
+
     if done:
         try:
-            _strip_refinement_blocks(Path.cwd())
+            _strip_refinement_blocks(target)
         except ValueError as exc:
             typer.echo(f"Error: {exc}", err=True)
             raise typer.Exit(code=1) from exc
     else:
-        _print_refinement_instructions()
+        # Auto-detect merge guide -> merge refinement
+        merge_guide = target / ".parallax" / "merge-guide.md"
+        use_merge = merge_guide.exists()
+        if use_merge:
+            typer.echo("Merge guide detected. Launching merge refinement...")
+        run_refinement(target, merge_mode=use_merge)
 
 
 @config_app.command("set")
@@ -283,15 +357,3 @@ def _strip_refinement_blocks(target: Path) -> None:
         typer.echo("No refinement blocks found.")
     else:
         typer.echo(f"Done. Removed refinement blocks from {count} file(s).")
-
-
-def _print_refinement_instructions() -> None:
-    typer.echo(
-        "Parallax refinement process:\n"
-        "\n"
-        "1. Start a Claude Code session in this project directory.\n"
-        "2. Ask Claude to read CLAUDE.md, PARALLAX.md, and CONSTITUTION.md.\n"
-        "3. Ask Claude to propose edits for project cohesion (plan mode).\n"
-        "4. Iterate until satisfied.\n"
-        "5. Run `parallax refine --done` to remove refinement comment blocks.\n"
-    )

@@ -48,7 +48,8 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 - [x] `memory: project` on hypothesis + experiment skills
 - [x] Writing agents: paper-writer (LaTeX), presentation-writer (Beamer)
 - [ ] LaTeX/Beamer writing skills (`/paper-review`, `/latex-guide`) as preloaded skills for writing agents
-- [ ] CI enhancements: semantic version validation, doc staleness check
+- [x] Doc staleness check (`scripts/check_doc_staleness.py` + CI step)
+- [ ] Semantic version validation in CI
 
 ## Layer 2 Features (MVP-beta)
 
