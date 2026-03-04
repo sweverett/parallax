@@ -229,6 +229,12 @@ _MODEL_MAP: dict[str, dict[str, str]] = {
         "20x": "opus",
         "api": "opus",
     },
+    "manuscript_reviewer": {
+        "pro": "sonnet",
+        "5x": "opus",
+        "20x": "opus",
+        "api": "opus",
+    },
 }
 
 # Template var name -> agent template name mapping
@@ -239,6 +245,7 @@ _AGENT_MODEL_VARS: dict[str, str] = {
     "result_validator": "validator_model",
     "paper_writer": "writer_model",
     "presentation_writer": "presenter_model",
+    "manuscript_reviewer": "reviewer_writing_model",
 }
 
 _AGENT_NAMES = [
@@ -248,6 +255,7 @@ _AGENT_NAMES = [
     "result_validator",
     "paper_writer",
     "presentation_writer",
+    "manuscript_reviewer",
 ]
 
 
@@ -312,7 +320,15 @@ def render_custom_agent(config: ProjectConfig) -> str:
 # Conflict detection
 # ---------------------------------------------------------------------------
 
-_SKILL_NAMES = ["hypothesis", "handoff", "audit", "experiment", "session_start"]
+_SKILL_NAMES = [
+    "hypothesis",
+    "handoff",
+    "audit",
+    "experiment",
+    "session_start",
+    "manuscript_review",
+    "latex_guide",
+]
 _HOOK_NAMES = ["test_guard.py", "lint_check.py", "stop_check.py"]
 
 

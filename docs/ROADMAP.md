@@ -47,7 +47,9 @@ Hooks/skills format could change upstream. No compatibility strategy. Should we 
 - [x] `parallax config set token-tier` for post-init changes
 - [x] `memory: project` on hypothesis + experiment skills
 - [x] Writing agents: paper-writer (LaTeX), presentation-writer (Beamer)
-- [ ] LaTeX/Beamer writing skills (`/paper-review`, `/latex-guide`) as preloaded skills for writing agents
+- [x] Writing skills: `/manuscript-review` (auto-detects paper/Beamer), `/latex-guide` (troubleshooting, auto-invocable)
+- [x] `manuscript-reviewer` agent (read-only critique, Bash for compilation checks)
+- [x] Layer 2 design doc ([005_layer2_design.md](plans/005_layer2_design.md))
 - [x] Doc staleness check (`scripts/check_doc_staleness.py` + CI step)
 - [ ] Semantic version validation in CI
 

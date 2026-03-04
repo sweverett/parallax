@@ -3,6 +3,7 @@ name: presentation-writer
 description: Create scientific presentations in Beamer from existing results and papers.
 model: ${presenter_model}
 tools: [Read, Glob, Grep, Edit, Write, Bash]
+skills: [latex-guide]
 ---
 Create scientific presentations in LaTeX Beamer for ${project_name} (${domain}).
 

@@ -28,12 +28,15 @@ class TestGeneratedOutput:
             ".claude/skills/audit/SKILL.md",
             ".claude/skills/experiment/SKILL.md",
             ".claude/skills/session-start/SKILL.md",
+            ".claude/skills/manuscript-review/SKILL.md",
+            ".claude/skills/latex-guide/SKILL.md",
             ".claude/agents/hypothesis-explorer.md",
             ".claude/agents/experiment-runner.md",
             ".claude/agents/literature-reviewer.md",
             ".claude/agents/result-validator.md",
             ".claude/agents/paper-writer.md",
             ".claude/agents/presentation-writer.md",
+            ".claude/agents/manuscript-reviewer.md",
         }
         assert expected == names
 
@@ -132,6 +135,53 @@ class TestGeneratedOutput:
                 f"Missing description in {agent_file.name}"
             )
             assert "model:" in content, f"Missing model in {agent_file.name}"
+
+    def test_manuscript_reviewer_frontmatter(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        target = Path(str(tmp_path))
+        render_project(make_config(), target)
+        content = (target / ".claude" / "agents" / "manuscript-reviewer.md").read_text()
+        assert "skills: [manuscript-review]" in content
+        assert "disallowedTools: [Edit, Write, NotebookEdit]" in content
+        assert "tools: [Read, Glob, Grep, Bash]" in content
+
+    def test_writer_agents_have_latex_guide(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        target = Path(str(tmp_path))
+        render_project(make_config(), target)
+        for name in ["paper-writer.md", "presentation-writer.md"]:
+            content = (target / ".claude" / "agents" / name).read_text()
+            assert "skills: [latex-guide]" in content, (
+                f"Missing latex-guide skill in {name}"
+            )
+
+    def test_manuscript_review_skill_structure(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        target = Path(str(tmp_path))
+        render_project(make_config(), target)
+        content = (
+            target / ".claude" / "skills" / "manuscript-review" / "SKILL.md"
+        ).read_text()
+        assert "disable-model-invocation: true" in content
+        assert "memory:" not in content  # should NOT have memory
+        assert "Paper Mode" in content
+        assert "Presentation Mode" in content
+
+    def test_latex_guide_skill_structure(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        target = Path(str(tmp_path))
+        render_project(make_config(), target)
+        content = (
+            target / ".claude" / "skills" / "latex-guide" / "SKILL.md"
+        ).read_text()
+        assert "disable-model-invocation" not in content  # auto-invocable
+        assert "memory:" not in content
+        assert "BibTeX" in content
+        assert "Beamer" in content
 
     def test_agents_contain_project_name(self, tmp_path: object) -> None:
         from pathlib import Path

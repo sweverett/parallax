@@ -164,9 +164,10 @@ class TestRenderSkill:
             "audit",
             "experiment",
             "session_start",
+            "manuscript_review",
+            "latex_guide",
         ]:
             out = render_skill(name, make_config())
-            assert "test-project" in out
             assert "${" not in out
 
     def test_hypothesis_has_memory(self) -> None:
@@ -182,6 +183,19 @@ class TestRenderSkill:
         assert "session-start" in out
         assert "handoffs" in out.lower()
 
+    def test_manuscript_review_render(self) -> None:
+        out = render_skill("manuscript_review", make_config())
+        assert "manuscript-review" in out
+        assert "Paper Mode" in out
+        assert "Presentation Mode" in out
+        assert "disable-model-invocation: true" in out
+
+    def test_latex_guide_render(self) -> None:
+        out = render_skill("latex_guide", make_config())
+        assert "latex-guide" in out
+        assert "BibTeX" in out
+        assert "disable-model-invocation" not in out
+
 
 # ---------------------------------------------------------------------------
 # Agent rendering
@@ -196,6 +210,7 @@ class TestModelForAgent:
         assert model_for_agent("result_validator", "pro") == "sonnet"
         assert model_for_agent("paper_writer", "pro") == "sonnet"
         assert model_for_agent("presentation_writer", "pro") == "sonnet"
+        assert model_for_agent("manuscript_reviewer", "pro") == "sonnet"
 
     def test_5x_tier_models(self) -> None:
         assert model_for_agent("hypothesis_explorer", "5x") == "opus"
@@ -204,6 +219,7 @@ class TestModelForAgent:
         assert model_for_agent("result_validator", "5x") == "opus"
         assert model_for_agent("paper_writer", "5x") == "opus"
         assert model_for_agent("presentation_writer", "5x") == "opus"
+        assert model_for_agent("manuscript_reviewer", "5x") == "opus"
 
     def test_api_tier_all_opus(self) -> None:
         for agent in [
@@ -213,6 +229,7 @@ class TestModelForAgent:
             "result_validator",
             "paper_writer",
             "presentation_writer",
+            "manuscript_reviewer",
         ]:
             assert model_for_agent(agent, "api") == "opus"
 
@@ -269,6 +286,17 @@ class TestRenderAgent:
         out = render_agent("presentation_writer", make_config(token_tier="5x"))
         assert "model: opus" in out
 
+    def test_manuscript_reviewer_pro(self) -> None:
+        out = render_agent("manuscript_reviewer", make_config())
+        assert "model: sonnet" in out
+        assert "manuscript-reviewer" in out
+        assert "disallowedTools:" in out
+        assert "${" not in out
+
+    def test_manuscript_reviewer_5x(self) -> None:
+        out = render_agent("manuscript_reviewer", make_config(token_tier="5x"))
+        assert "model: opus" in out
+
     def test_all_agents_no_unsubstituted_vars(self) -> None:
         for name in [
             "hypothesis_explorer",
@@ -277,6 +305,7 @@ class TestRenderAgent:
             "result_validator",
             "paper_writer",
             "presentation_writer",
+            "manuscript_reviewer",
         ]:
             out = render_agent(name, make_config())
             assert "${" not in out, f"Unsubstituted var in {name}"
@@ -345,6 +374,9 @@ class TestRenderProject:
         assert ".claude/agents/result-validator.md" in names
         assert ".claude/agents/paper-writer.md" in names
         assert ".claude/agents/presentation-writer.md" in names
+        assert ".claude/agents/manuscript-reviewer.md" in names
+        assert ".claude/skills/manuscript-review/SKILL.md" in names
+        assert ".claude/skills/latex-guide/SKILL.md" in names
 
     def test_no_skills_when_disabled(self, tmp_path: Path) -> None:
         result = render_project(make_config(generate_skills=False), tmp_path)

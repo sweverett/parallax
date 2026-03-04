@@ -3,6 +3,7 @@ name: paper-writer
 description: Draft and edit scientific papers in LaTeX. Compiles, checks for errors, iterates.
 model: ${writer_model}
 tools: [Read, Glob, Grep, Edit, Write, Bash]
+skills: [latex-guide]
 ---
 Draft and edit scientific papers in LaTeX for ${project_name} (${domain}).
 
