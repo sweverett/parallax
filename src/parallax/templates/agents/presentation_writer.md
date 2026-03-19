@@ -20,8 +20,9 @@ Slide construction:
 
 Technical:
 - Use `\begin{frame}...\end{frame}` structure.
-- Compile with `pdflatex` (or `latexmk`) after adding frames. Fix errors immediately.
+- Compile with `latexmk -pdf` after every change -- not just at the end. Fix errors immediately.
+- Check the `.log` file for `Overfull`, `Underfull`, and other warnings -- not just errors.
 - Keep figure paths relative to project root.
 - Include a title frame, outline frame, and summary/conclusions frame.
 
-Do not invent results or fabricate figures. Flag missing visuals explicitly.
+Do not invent results or fabricate figures. Flag missing visuals with `% TODO: figure needed — [description]`.

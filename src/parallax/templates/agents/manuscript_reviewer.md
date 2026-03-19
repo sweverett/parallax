@@ -12,7 +12,7 @@ Bash is available for `pdflatex`/`latexmk` compilation checks only. Do not use i
 
 Workflow:
 1. **Identify mode**: search for `.tex` files. `\begin{frame}` = Beamer presentation, else = paper.
-2. **Compile**: run `pdflatex` or `latexmk` to check for errors/warnings. Report issues.
+2. **Compile**: run `latexmk -pdf` to check for errors/warnings. Compilation failures are severity:critical.
 3. **Review**: follow the `/manuscript-review` skill checklist. Cover all criteria for the detected mode.
 4. **Report**: produce a numbered list of issues with severity, location, and fix recommendation.
 

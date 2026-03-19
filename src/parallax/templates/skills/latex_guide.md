@@ -87,10 +87,77 @@ Common conflicts and fixes:
 ```
 
 ### Common Beamer Issues
-- `Overfull` in frames: use `\begin{frame}[shrink]` or reduce content
-- Fragile content (verbatim, listings): use `\begin{frame}[fragile]`
-- Animation: `\pause`, `\only<N>{...}`, `\onslide<N>{...}`
-- Theme: set once in preamble (`\usetheme{Madrid}`, `\usecolortheme{default}`)
+
+| Issue | Cause | Fix |
+|---|---|---|
+| `Overfull` in frames | Too much content | Reduce content, split frame, or use `[shrink]` (last resort) |
+| Fragile content errors | Verbatim/listings in frame | Use `\begin{frame}[fragile]` |
+| `Token not allowed` | Fragile command in frame title | Move to `\frametitle{}` inside frame body |
+| Blank frame after title | Missing content or extra `\end{frame}` | Check brace/environment matching |
+| Animations not working | Wrong overlay spec | Use `\pause`, `\only<N>{...}`, `\onslide<N>{...}`, `\uncover<N>{...}` |
+| Theme not applying | Load order | Set theme before `\begin{document}`: `\usetheme{...}`, `\usecolortheme{...}` |
+
+### Metropolis Theme
+
+Metropolis (`\usetheme{metropolis}`) is a common modern Beamer theme.
+
+```latex
+\usetheme{metropolis}
+% Optional customization
+\metroset{
+  sectionpage=progressbar,  % or: none, simple, progressbar
+  numbering=fraction,       % or: none, counter, fraction
+  progressbar=frametitle,   % or: none, head, frametitle, foot
+}
+```
+
+Known issues:
+- Requires `fontspec` + XeLaTeX/LuaLaTeX for full font support. With `pdflatex`, use `\usetheme[numbering=fraction]{metropolis}` and avoid `\setsansfont`.
+- If using `pdflatex`, add `\usepackage[T1]{fontenc}` to avoid font warnings.
+- Metropolis uses `\alert{}` for emphasis (colored text), not bold.
+
+### Speaker Notes
+
+```latex
+% In preamble
+\usepackage{pgfpages}
+\setbeameroption{show notes on second screen=right}
+
+% In frames
+\begin{frame}{Title}
+  Visible content.
+  \note{Speaker-only notes for this frame.}
+\end{frame}
+```
+
+Compile to PDF normally -- notes appear on the right half. Use a PDF viewer that supports dual-screen (e.g., pdfpc, Présentation).
+
+For handouts without notes: `\setbeameroption{hide notes}` or compile with `\documentclass[handout]{beamer}`.
+
+### Animation and Overlays
+
+```latex
+\pause                    % reveal next items one by one
+\only<2>{visible on 2}    % takes no space when hidden
+\onslide<2->{from 2 on}   % takes space always, visible from slide 2
+\uncover<3>{visible on 3}  % takes space always
+\alert<2>{red on slide 2}  % highlight on specific overlay
+```
+
+For itemize: `\begin{itemize}[<+->]` makes each item appear incrementally.
+
+### TikZ in Frames
+
+```latex
+\begin{frame}{Diagram}
+  \begin{tikzpicture}
+    % TikZ code here
+  \end{tikzpicture}
+\end{frame}
+```
+
+- Use `\begin{frame}[fragile]` only if TikZ code contains verbatim-like constructs.
+- For overlays with TikZ: `\only<2>{\node at (0,0) {text};}` or use `\visible<2>`.
 
 ### Beamer + BibTeX
 ```latex
