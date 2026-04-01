@@ -30,6 +30,8 @@ class TestGeneratedOutput:
             ".claude/skills/session-start/SKILL.md",
             ".claude/skills/manuscript-review/SKILL.md",
             ".claude/skills/latex-guide/SKILL.md",
+            ".claude/skills/grill-me/SKILL.md",
+            ".claude/skills/test-integrity/SKILL.md",
             ".claude/agents/hypothesis-explorer.md",
             ".claude/agents/experiment-runner.md",
             ".claude/agents/literature-reviewer.md",

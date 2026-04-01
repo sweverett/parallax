@@ -109,6 +109,7 @@ pixi run check       # all of the above
 
 ## Plan Completion & Verification
 
+- When test files are modified, run /test-integrity before committing
 - **Archive the plan.** At the start of implementation, copy the plan file to `docs/plans/NNN_short-name.md` (next sequence number). The plan path is in the system message from plan mode.
 - Every plan's verification section is **mandatory**. At the end of implementation:
   1. **List all verification commands** from the plan so the user can run them independently

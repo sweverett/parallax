@@ -35,6 +35,10 @@ ${units_rule}
 - Reproducible environments
 - See @CONSTITUTION.md for the full set of scientific values
 ${git_section}
+## Plan Verification
+
+- When a completed plan modifies test files, run /test-integrity before the final commit
+
 ## Writing Style
 
 All docs, markdown, READMEs, commit messages, and code comments:

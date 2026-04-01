@@ -328,6 +328,8 @@ _SKILL_NAMES = [
     "session_start",
     "manuscript_review",
     "latex_guide",
+    "grill_me",
+    "test_integrity",
 ]
 _HOOK_NAMES = ["test_guard.py", "lint_check.py", "stop_check.py"]
 

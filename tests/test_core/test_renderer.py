@@ -166,9 +166,18 @@ class TestRenderSkill:
             "session_start",
             "manuscript_review",
             "latex_guide",
+            "grill_me",
+            "test_integrity",
         ]:
             out = render_skill(name, make_config())
             assert "${" not in out
+
+    def test_test_integrity_render(self) -> None:
+        out = render_skill("test_integrity", make_config())
+        assert "test-integrity" in out
+        assert "disable-model-invocation: true" not in out
+        assert "Weakening Patterns" in out
+        assert "${" not in out
 
     def test_hypothesis_has_memory(self) -> None:
         out = render_skill("hypothesis", make_config())
