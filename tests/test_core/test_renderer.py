@@ -32,7 +32,7 @@ class TestRenderClaudeMd:
         assert "A test project" in out
         assert "astrophysics" in out
         assert "Python" in out
-        assert "pixi" in out
+        assert "conda" in out
         assert "pytest" in out
 
     def test_refinement_block_present(self) -> None:

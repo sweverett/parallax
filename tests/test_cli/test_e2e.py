@@ -18,7 +18,7 @@ def _full_config() -> ProjectConfig:
         summary="Galaxy redshift measurement pipeline",
         domain="astrophysics",
         languages="Python",
-        package_manager="pixi",
+        package_manager="conda",
         test_framework="pytest",
         uses_units=True,
         uses_jax=True,
@@ -75,7 +75,7 @@ class TestE2E:
         assert "Galaxy redshift measurement pipeline" in claude
         assert "astrophysics" in claude
         assert "Python" in claude
-        assert "pixi" in claude
+        assert "conda" in claude
         assert "pytest" in claude
         # Conditional sections
         assert "Dimensional analysis is mandatory" in claude

@@ -10,7 +10,7 @@ def make_config(**overrides: object) -> ProjectConfig:
         "summary": "A test project",
         "domain": "astrophysics",
         "languages": "Python",
-        "package_manager": "pixi",
+        "package_manager": "conda",
         "test_framework": "pytest",
         "uses_units": False,
         "uses_jax": False,

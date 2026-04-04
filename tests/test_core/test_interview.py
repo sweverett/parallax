@@ -33,7 +33,7 @@ class TestRunInterviewYesMode:
         assert cfg.summary == "My project summary"
         assert cfg.domain == "genomics"
         assert cfg.languages == "Python"
-        assert cfg.package_manager == "pixi"
+        assert cfg.package_manager == "conda"
         assert cfg.test_framework == "pytest"
         assert cfg.uses_units is False
         assert cfg.uses_jax is False
@@ -58,7 +58,7 @@ class TestRunInterviewFull:
                 "A science tool",
                 "climate",
                 "Python",
-                "pixi",
+                "conda",
                 "pytest",
                 "",
                 "pro",
@@ -106,7 +106,7 @@ class TestRunInterviewFull:
                 "Differentiable astrophysics",
                 "astrophysics",
                 "Python",
-                "pixi",
+                "conda",
                 "pytest",
                 "se/",
                 "5x",
@@ -170,7 +170,7 @@ class TestAskChoice:
 
     def test_rejects_invalid_then_accepts_valid(self) -> None:
         """Invalid input rejected, valid input accepted on retry."""
-        responses = iter(["conda", "pixi"])
+        responses = iter(["nope", "pixi"])
 
         with (
             patch(

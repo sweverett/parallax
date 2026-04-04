@@ -8,13 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 — used at runtime in to_json/from_json
 from typing import Literal
 
-PackageManager = Literal["pixi", "poetry", "pdm", "uv", "pip"]
 TestFramework = Literal["pytest", "unittest", "nose2"]
 TokenTier = Literal["pro", "5x", "20x", "api"]
 
-VALID_PACKAGE_MANAGERS: frozenset[str] = frozenset(
-    ["pixi", "poetry", "pdm", "uv", "pip"]
-)
 VALID_TEST_FRAMEWORKS: frozenset[str] = frozenset(["pytest", "unittest", "nose2"])
 VALID_TOKEN_TIERS: frozenset[str] = frozenset(["pro", "5x", "20x", "api"])
 
@@ -28,7 +24,7 @@ class ProjectConfig:
     summary: str
     domain: str
     languages: str
-    package_manager: PackageManager
+    package_manager: str
     test_framework: TestFramework
     uses_units: bool
     uses_jax: bool
@@ -52,14 +48,6 @@ class ProjectConfig:
             if not isinstance(val, str) or not val.strip():
                 msg = f"{field} must be a non-empty string, got {val!r}"
                 raise ValueError(msg)
-
-        # Defense-in-depth beyond Literal types
-        if self.package_manager not in VALID_PACKAGE_MANAGERS:
-            msg = (
-                f"Invalid package_manager {self.package_manager!r}. "
-                f"Must be one of: {sorted(VALID_PACKAGE_MANAGERS)}"
-            )
-            raise ValueError(msg)
 
         if self.test_framework not in VALID_TEST_FRAMEWORKS:
             msg = (

@@ -11,7 +11,6 @@ from typing import cast
 import typer
 
 from parallax.core.config import (
-    PackageManager,
     ProjectConfig,
     TestFramework,
     TokenTier,
@@ -30,9 +29,7 @@ _CTX_DOMAIN = (
 _CTX_LANGUAGES = (
     "Primary programming language(s). Drives code conventions in CLAUDE.md."
 )
-_CTX_PACKAGE_MANAGER = (
-    "Determines dev commands section in CLAUDE.md (e.g., pixi run test)."
-)
+_CTX_PACKAGE_MANAGER = "Shown in Tech Stack section of CLAUDE.md."
 _CTX_TEST_FRAMEWORK = "Determines testing section in CLAUDE.md."
 _CTX_USES_UNITS = (
     "If yes, CLAUDE.md will include a mandatory dimensional analysis rule -- "
@@ -281,7 +278,7 @@ def run_interview(
 
     if yes:
         languages = "Python"
-        package_manager: PackageManager = "pixi"
+        package_manager = "conda"
         test_framework: TestFramework = "pytest"
         uses_units = False
         uses_jax = False
@@ -291,14 +288,8 @@ def run_interview(
         token_tier: TokenTier = "pro"
     else:
         languages = _ask_text("Primary language(s)", _CTX_LANGUAGES, default="Python")
-        package_manager = cast(
-            "PackageManager",
-            _ask_choice(
-                "Package manager",
-                _CTX_PACKAGE_MANAGER,
-                ["pixi", "poetry", "pdm", "uv", "pip"],
-                default="pixi",
-            ),
+        package_manager = _ask_text(
+            "Package manager", _CTX_PACKAGE_MANAGER, default="conda"
         )
         test_framework = cast(
             "TestFramework",

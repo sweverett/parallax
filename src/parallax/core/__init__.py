@@ -1,5 +1,5 @@
 """Core logic: hypothesis management, state, templates, workflow."""
 
-from parallax.core.config import PackageManager, ProjectConfig, TestFramework
+from parallax.core.config import ProjectConfig, TestFramework
 
-__all__ = ["PackageManager", "ProjectConfig", "TestFramework"]
+__all__ = ["ProjectConfig", "TestFramework"]

@@ -17,7 +17,7 @@ def _make_project(tmp_path: Path) -> None:
         summary="A test",
         domain="testing",
         languages="Python",
-        package_manager="pixi",
+        package_manager="conda",
         test_framework="pytest",
         uses_units=False,
         uses_jax=False,

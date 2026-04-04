@@ -85,18 +85,9 @@ class TestValidation:
         with pytest.raises(ValueError, match="domain"):
             make_config(domain="  \t ")
 
-    def test_invalid_package_manager_raises(self) -> None:
-        with pytest.raises(ValueError, match="package_manager"):
-            make_config(package_manager="conda")
-
     def test_invalid_test_framework_raises(self) -> None:
         with pytest.raises(ValueError, match="test_framework"):
             make_config(test_framework="tox")
-
-    @pytest.mark.parametrize("pm", ["pixi", "poetry", "pdm", "uv", "pip"])
-    def test_all_valid_package_managers(self, pm: str) -> None:
-        cfg = make_config(package_manager=pm)
-        assert cfg.package_manager == pm
 
     @pytest.mark.parametrize("tf", ["pytest", "unittest", "nose2"])
     def test_all_valid_test_frameworks(self, tf: str) -> None:
