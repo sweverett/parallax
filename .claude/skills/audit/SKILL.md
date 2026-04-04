@@ -18,7 +18,7 @@ Perform each check and report findings:
 
 1. **Code review:** Bugs, concerns, anti-patterns, security issues in `src/parallax/`.
 2. **Test gaps:** Untested features, weak assertions, missing edge cases in `tests/`.
-3. **Doc staleness:** Do README.md, CLAUDE.md, ROADMAP.md, VISION.md match current code? Are references valid?
+3. **Doc staleness:** Do README.md, CLAUDE.md, ROADMAP.md, VISION.md match current code? Are references valid? For deep doc auditing, run `/doc-sync`.
 4. **Dependency health:** Outdated or vulnerable dependencies in pyproject.toml/pixi.toml.
 5. **Architecture:** Does code match the 3-layer design in VISION.md? Any drift?
 6. **Scientific rigor:** Are hypotheses documented? Results reproducible? Assumptions stated?

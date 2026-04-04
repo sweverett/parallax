@@ -32,6 +32,7 @@ class TestGeneratedOutput:
             ".claude/skills/latex-guide/SKILL.md",
             ".claude/skills/grill-me/SKILL.md",
             ".claude/skills/test-integrity/SKILL.md",
+            ".claude/skills/doc-sync/SKILL.md",
             ".claude/agents/hypothesis-explorer.md",
             ".claude/agents/experiment-runner.md",
             ".claude/agents/literature-reviewer.md",

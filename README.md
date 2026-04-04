@@ -106,10 +106,12 @@ parallax config set token-tier 5x    # update agent model selection
 - **CLAUDE.md** -- project-specific AI agent guide
 - **PARALLAX.md** -- scientific workflow rules
 - **CONSTITUTION.md** -- core scientific principles
-- **.claude/skills/** -- hypothesis, handoff, audit, experiment, session-start, manuscript-review, latex-guide skills
+- **.claude/skills/** -- hypothesis, handoff, audit, experiment, session-start, manuscript-review, latex-guide, doc-sync skills
 - **.claude/agents/** -- hypothesis-explorer, experiment-runner, literature-reviewer, result-validator, paper-writer, presentation-writer, manuscript-reviewer agents
 - **.claude/hooks/** -- test guard, lint check, stop check enforcement scripts
 - **.claude/settings.json** -- hook configuration referencing scripts above
+
+See [docs/toolkit.md](docs/toolkit.md) for descriptions of each skill, agent, and hook.
 
 Token tiers control agent model selection:
 - **pro** (default) -- conservative: haiku exploration, sonnet validation
@@ -128,7 +130,7 @@ What exists:
 - `parallax refine --done`: strip refinement comment blocks
 - `parallax config`: post-init configuration changes (token tier)
 - Hook enforcement: test guard (blocks test weakening), lint check (ruff feedback), stop check (uncommitted work reminder)
-- Full skill definitions: /hypothesis, /handoff, /audit, /experiment, /session-start, /manuscript-review, /latex-guide
+- Full skill definitions: /hypothesis, /handoff, /audit, /experiment, /session-start, /manuscript-review, /latex-guide, /doc-sync
 - Agent definitions: hypothesis-explorer, experiment-runner, literature-reviewer, result-validator, paper-writer, presentation-writer, manuscript-reviewer
 - Token tier system: model selection per agent based on usage tier (pro/5x/20x/api)
 - CI pipeline (ruff, mypy --strict, pytest)

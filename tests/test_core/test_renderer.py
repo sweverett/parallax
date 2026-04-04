@@ -168,6 +168,7 @@ class TestRenderSkill:
             "latex_guide",
             "grill_me",
             "test_integrity",
+            "doc_sync",
         ]:
             out = render_skill(name, make_config())
             assert "${" not in out
@@ -204,6 +205,14 @@ class TestRenderSkill:
         assert "latex-guide" in out
         assert "BibTeX" in out
         assert "disable-model-invocation" not in out
+
+    def test_doc_sync_render(self) -> None:
+        out = render_skill("doc_sync", make_config())
+        assert "doc-sync" in out
+        assert "disable-model-invocation: true" in out
+        assert "Category A" in out
+        assert "Category G" in out
+        assert "${" not in out
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +395,7 @@ class TestRenderProject:
         assert ".claude/agents/manuscript-reviewer.md" in names
         assert ".claude/skills/manuscript-review/SKILL.md" in names
         assert ".claude/skills/latex-guide/SKILL.md" in names
+        assert ".claude/skills/doc-sync/SKILL.md" in names
 
     def test_no_skills_when_disabled(self, tmp_path: Path) -> None:
         result = render_project(make_config(generate_skills=False), tmp_path)

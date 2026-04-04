@@ -330,6 +330,7 @@ _SKILL_NAMES = [
     "latex_guide",
     "grill_me",
     "test_integrity",
+    "doc_sync",
 ]
 _HOOK_NAMES = ["test_guard.py", "lint_check.py", "stop_check.py"]
 
