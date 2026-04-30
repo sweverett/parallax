@@ -18,6 +18,7 @@ from parallax.core.renderer import (
     _MODEL_MAP,
     classify_outputs,
     classify_sync,
+    derive_config_from_target,
     model_for_agent,
     render_project,
     render_sync,
@@ -266,16 +267,27 @@ def sync(
         raise typer.Exit(code=1)
 
     config_path = target / _CONFIG_REL
-    if not config_path.exists():
+    if config_path.exists():
+        config = ProjectConfig.from_json(config_path)
+    else:
+        # Legacy project: derive config from rendered files, persist snapshot.
+        config, warnings = derive_config_from_target(target)
         typer.echo(
-            "Error: no .parallax/config.json found. This project predates the "
-            "config snapshot.\nRe-run `parallax init -f` once to capture state, "
-            "then `parallax sync`.",
-            err=True,
+            "No .parallax/config.json found; deriving from existing files.",
         )
-        raise typer.Exit(code=1)
-
-    config = ProjectConfig.from_json(config_path)
+        typer.echo(
+            f"  project_name: {config.project_name}\n"
+            f"  domain:       {config.domain}\n"
+            f"  token_tier:   {config.token_tier}\n"
+            f"  skills:       {config.generate_skills}\n"
+            f"  hooks:        {config.generate_hooks}",
+        )
+        for w in warnings:
+            typer.echo(f"  warning: {w}", err=True)
+        if not dry_run:
+            config.to_json(config_path)
+            typer.echo(f"  wrote {_CONFIG_REL}")
+        typer.echo("")
 
     if dry_run:
         new, conflicting, identical = classify_sync(config, target)

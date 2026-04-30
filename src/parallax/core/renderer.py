@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.resources
+import re
 import shutil
 import tempfile
 from dataclasses import dataclass, field
@@ -10,8 +11,10 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING, Literal
 
+from parallax.core.config import ProjectConfig
+
 if TYPE_CHECKING:
-    from parallax.core.config import ProjectConfig, TokenTier
+    from parallax.core.config import TokenTier
 
 GuideMode = Literal["init", "sync"]
 
@@ -484,6 +487,176 @@ def classify_sync(
     (new, conflicting, identical) shape as classify_outputs.
     """
     return _classify(_render_sync_content(config), target)
+
+
+# ---------------------------------------------------------------------------
+# Config derivation for legacy projects (no .parallax/config.json)
+# ---------------------------------------------------------------------------
+
+# Regex patterns for deriving fields from rendered files.
+_PROJECT_NAME_RE = re.compile(r"^# (.+?) -- Scientific Workflow Rules", re.MULTILINE)
+_DOMAIN_RE_PARALLAX = re.compile(r"^Domain:\s*(.+?)\s*$", re.MULTILINE)
+_DOMAIN_RE_LITREV = re.compile(
+    r"the project's scientific domain:\s*([^.\n]+?)\.", re.MULTILINE
+)
+_AGENT_MODEL_RE = re.compile(r"^model:\s*(\S+)", re.MULTILINE)
+
+
+def _derive_token_tier(agents_dir: Path) -> tuple[TokenTier, list[str]]:
+    """Reverse-lookup token tier from agent model fields.
+
+    Returns (tier, warnings). Each agent file constrains which tiers are
+    consistent with its model line; the intersection across all agents
+    typically pins a single tier. Falls back to 'pro' if no agents found
+    or no consistent tier exists.
+    """
+    warnings: list[str] = []
+    candidates: set[str] = set(_MODEL_MAP[next(iter(_MODEL_MAP))].keys())
+    observed_any = False
+
+    for agent_file in sorted(agents_dir.glob("*.md")):
+        stem = agent_file.stem.replace("-", "_")
+        if stem not in _MODEL_MAP:
+            continue
+        match = _AGENT_MODEL_RE.search(agent_file.read_text(encoding="utf-8"))
+        if not match:
+            continue
+        observed_any = True
+        observed_model = match.group(1)
+        candidates &= {t for t, m in _MODEL_MAP[stem].items() if m == observed_model}
+
+    if not observed_any:
+        warnings.append(
+            "No agent files found to derive token_tier; defaulting to 'pro'."
+        )
+        return "pro", warnings
+
+    if not candidates:
+        warnings.append(
+            "Agent model fields inconsistent with any token tier "
+            "(custom edits?); defaulting to 'pro'. Edit .parallax/config.json "
+            "if wrong."
+        )
+        return "pro", warnings
+
+    # Prefer in this order: pro (default), 5x, 20x, api (most -> least conservative)
+    for tier in ("pro", "5x", "20x", "api"):
+        if tier in candidates:
+            if len(candidates) > 1:
+                warnings.append(
+                    f"token_tier ambiguous between {sorted(candidates)} "
+                    f"(20x and api use identical models); chose {tier!r}. "
+                    "Edit .parallax/config.json if wrong."
+                )
+            return tier, warnings
+
+    return "pro", warnings  # unreachable; defensive fallback
+
+
+def _derive_project_name(target: Path) -> tuple[str, list[str]]:
+    """Extract project_name from PARALLAX.md heading; fall back to dir name."""
+    parallax_md = target / "PARALLAX.md"
+    if parallax_md.exists():
+        match = _PROJECT_NAME_RE.search(parallax_md.read_text(encoding="utf-8"))
+        if match:
+            return match.group(1).strip(), []
+    fallback = target.name or "unnamed-project"
+    return fallback, [
+        f"Could not parse project_name from PARALLAX.md heading; "
+        f"using directory name {fallback!r}."
+    ]
+
+
+def _derive_domain(target: Path) -> tuple[str, list[str]]:
+    """Extract domain from PARALLAX.md or literature-reviewer.md."""
+    parallax_md = target / "PARALLAX.md"
+    if parallax_md.exists():
+        match = _DOMAIN_RE_PARALLAX.search(parallax_md.read_text(encoding="utf-8"))
+        if match:
+            return match.group(1).strip(), []
+
+    lit_review = target / ".claude" / "agents" / "literature-reviewer.md"
+    if lit_review.exists():
+        match = _DOMAIN_RE_LITREV.search(lit_review.read_text(encoding="utf-8"))
+        if match:
+            return match.group(1).strip(), []
+
+    return "research", [
+        "Could not derive domain from PARALLAX.md or literature-reviewer.md; "
+        "defaulting to 'research'. Edit .parallax/config.json if wrong."
+    ]
+
+
+def _derive_custom_agent_description(target: Path) -> str:
+    """Extract custom agent body if .claude/agents/custom.md exists."""
+    custom = target / ".claude" / "agents" / "custom.md"
+    if not custom.exists():
+        return ""
+    text = custom.read_text(encoding="utf-8")
+    # Strip frontmatter (between two --- lines)
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            text = text[end + 4 :]
+    return text.strip()
+
+
+def derive_config_from_target(target: Path) -> tuple[ProjectConfig, list[str]]:
+    """Derive a sync-ready ProjectConfig from rendered files in target.
+
+    Used by `parallax sync` for legacy projects that predate the
+    .parallax/config.json snapshot. Reads project_name, domain, token_tier,
+    generate_skills, generate_hooks, and custom_agent_description from existing
+    files. Other fields receive harmless defaults — they only affect CLAUDE.md
+    and PARALLAX.md content, which sync never writes.
+
+    Returns (config, warnings). Warnings describe any defaults used so the
+    caller can surface them to the user.
+    """
+    warnings: list[str] = []
+
+    project_name, w = _derive_project_name(target)
+    warnings.extend(w)
+
+    domain, w = _derive_domain(target)
+    warnings.extend(w)
+
+    agents_dir = target / ".claude" / "agents"
+    token_tier, w = (
+        _derive_token_tier(agents_dir)
+        if agents_dir.exists()
+        else (
+            "pro",
+            ["No .claude/agents/ directory; defaulting token_tier to 'pro'."],
+        )
+    )
+    warnings.extend(w)
+
+    generate_skills = (target / ".claude" / "skills").exists()
+    generate_hooks = (target / ".claude" / "hooks").exists()
+    custom_agent_description = _derive_custom_agent_description(target)
+
+    config = ProjectConfig(
+        project_name=project_name,
+        summary="(derived by parallax sync; edit .parallax/config.json to set)",
+        domain=domain,
+        languages="",
+        package_manager="conda",
+        test_framework="pytest",
+        uses_units=False,
+        uses_jax=False,
+        branch_prefix="",
+        generate_skills=generate_skills,
+        generate_hooks=generate_hooks,
+        token_tier=token_tier,
+        editor="",
+        science_requirements="",
+        preferred_patterns="",
+        outlawed_patterns="",
+        key_libraries="",
+        custom_agent_description=custom_agent_description,
+    )
+    return config, warnings
 
 
 # ---------------------------------------------------------------------------

@@ -109,6 +109,8 @@ parallax sync --dry-run              # show what would change without writing
 
 `parallax sync` updates Parallax-managed template files (CONSTITUTION.md, all skills, agents, hooks, settings.json) without touching your CLAUDE.md or PARALLAX.md. User-modified files are written with a `.parallax` suffix; run `parallax refine` afterward to merge.
 
+For projects initialized before the `.parallax/config.json` snapshot existed, `parallax sync` auto-derives the snapshot from rendered files (project_name from PARALLAX.md heading, domain from PARALLAX.md, token_tier reverse-derived from agent model fields, skills/hooks from directory presence). The derived values are printed and persisted; review `.parallax/config.json` and edit if anything is wrong.
+
 `parallax init` runs a structured interview generating:
 - **CLAUDE.md** -- project-specific AI agent guide
 - **PARALLAX.md** -- scientific workflow rules

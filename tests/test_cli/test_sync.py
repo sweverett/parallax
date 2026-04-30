@@ -59,13 +59,36 @@ class TestSyncPreflight:
         assert result.exit_code == 1
         assert "not a Parallax-managed project" in result.output
 
-    def test_requires_config_json(self, tmp_path: Path) -> None:
-        # PARALLAX.md exists but no config snapshot (legacy project)
-        (tmp_path / "PARALLAX.md").write_text("# legacy")
+    def test_legacy_project_auto_derives_config(self, tmp_path: Path) -> None:
+        """Legacy project (rendered files but no config.json) syncs by deriving."""
+        cfg = _dummy_config(project_name="legacy-proj", domain="bio", token_tier="5x")
+        render_project(cfg, tmp_path)
+        # Note: deliberately NOT writing _CONFIG_REL — this is the legacy state
+        config_path = tmp_path / _CONFIG_REL
+        assert not config_path.exists()
+
         result = runner.invoke(app, ["sync", "-t", str(tmp_path)])
-        assert result.exit_code == 1
-        assert "config.json" in result.output
-        assert "parallax init -f" in result.output
+        assert result.exit_code == 0
+        assert "deriving from existing files" in result.output
+        # Snapshot was persisted for next time
+        assert config_path.exists()
+        loaded = ProjectConfig.from_json(config_path)
+        assert loaded.project_name == "legacy-proj"
+        assert loaded.domain == "bio"
+        assert loaded.token_tier == "5x"
+
+    def test_legacy_dry_run_does_not_persist_snapshot(self, tmp_path: Path) -> None:
+        """--dry-run + legacy project: derive, show counts, do not write config.json."""
+        cfg = _dummy_config()
+        render_project(cfg, tmp_path)
+        config_path = tmp_path / _CONFIG_REL
+        assert not config_path.exists()
+
+        result = runner.invoke(app, ["sync", "-t", str(tmp_path), "--dry-run"])
+        assert result.exit_code == 0
+        assert "deriving from existing files" in result.output
+        # Dry-run must not persist
+        assert not config_path.exists()
 
 
 class TestSyncBehavior:

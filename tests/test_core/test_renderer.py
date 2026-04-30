@@ -10,6 +10,7 @@ from parallax.core.renderer import (
     check_conflicts,
     classify_outputs,
     classify_sync,
+    derive_config_from_target,
     model_for_agent,
     render_agent,
     render_claude_md,
@@ -780,3 +781,91 @@ class TestRenderSync:
         result = render_sync(make_config(), tmp_path)
         assert len(result.suffixed) == 0
         assert not (tmp_path / ".parallax" / "merge-guide.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# Config derivation (for legacy projects without .parallax/config.json)
+# ---------------------------------------------------------------------------
+
+
+class TestDeriveConfig:
+    def test_derives_project_name_from_parallax_md(self, tmp_path: Path) -> None:
+        cfg = make_config(project_name="my-project", domain="genomics")
+        render_project(cfg, tmp_path)
+        derived, _ = derive_config_from_target(tmp_path)
+        assert derived.project_name == "my-project"
+
+    def test_derives_domain_from_parallax_md(self, tmp_path: Path) -> None:
+        cfg = make_config(project_name="x", domain="exoplanets")
+        render_project(cfg, tmp_path)
+        derived, _ = derive_config_from_target(tmp_path)
+        assert derived.domain == "exoplanets"
+
+    @pytest.mark.parametrize("tier", ["pro", "5x", "20x"])
+    def test_derives_token_tier(self, tmp_path: Path, tier: str) -> None:
+        cfg = make_config(token_tier=tier)
+        render_project(cfg, tmp_path)
+        derived, _ = derive_config_from_target(tmp_path)
+        assert derived.token_tier == tier
+
+    def test_api_tier_ambiguous_with_20x(self, tmp_path: Path) -> None:
+        """20x and api use identical models; derivation chooses 20x with warning."""
+        cfg = make_config(token_tier="api")
+        render_project(cfg, tmp_path)
+        derived, warnings = derive_config_from_target(tmp_path)
+        assert derived.token_tier == "20x"
+        assert any("ambiguous" in w for w in warnings)
+
+    def test_derives_skills_and_hooks_flags(self, tmp_path: Path) -> None:
+        cfg = make_config(generate_skills=True, generate_hooks=True)
+        render_project(cfg, tmp_path)
+        derived, _ = derive_config_from_target(tmp_path)
+        assert derived.generate_skills is True
+        assert derived.generate_hooks is True
+
+    def test_skills_false_when_no_skills_dir(self, tmp_path: Path) -> None:
+        cfg = make_config(generate_skills=True, generate_hooks=False)
+        render_project(cfg, tmp_path)
+        derived, _ = derive_config_from_target(tmp_path)
+        assert derived.generate_hooks is False
+
+    def test_round_trip_renders_identical_sync_subset(self, tmp_path: Path) -> None:
+        """Sync content from derived config matches sync content from original."""
+        cfg = make_config(
+            project_name="round-trip", domain="cosmology", token_tier="5x"
+        )
+        render_project(cfg, tmp_path)
+        derived, _ = derive_config_from_target(tmp_path)
+        # If derivation is correct, classifying sync content against the target
+        # should mark every file as identical.
+        new, conflicting, identical = classify_sync(derived, tmp_path)
+        assert len(new) == 0
+        assert len(conflicting) == 0
+        assert len(identical) > 0
+
+    def test_falls_back_to_dir_name(self, tmp_path: Path) -> None:
+        """If PARALLAX.md heading is unparseable, derive project_name from dir."""
+        # Plain PARALLAX.md (no canonical "Scientific Workflow Rules" heading)
+        (tmp_path / "PARALLAX.md").write_text("# Custom heading\n")
+        derived, warnings = derive_config_from_target(tmp_path)
+        assert derived.project_name == tmp_path.name
+        assert any("project_name" in w for w in warnings)
+
+    def test_falls_back_to_research_domain(self, tmp_path: Path) -> None:
+        (tmp_path / "PARALLAX.md").write_text("# unknown\n")
+        derived, warnings = derive_config_from_target(tmp_path)
+        assert derived.domain == "research"
+        assert any("domain" in w.lower() for w in warnings)
+
+    def test_extracts_custom_agent_description(self, tmp_path: Path) -> None:
+        custom_text = (
+            "---\nname: custom\ndescription: ...\n---\nThis is the custom agent body.\n"
+        )
+        (tmp_path / "PARALLAX.md").write_text(
+            "# proj -- Scientific Workflow Rules\nDomain: x\n"
+        )
+        agents = tmp_path / ".claude" / "agents"
+        agents.mkdir(parents=True)
+        (agents / "custom.md").write_text(custom_text)
+        derived, _ = derive_config_from_target(tmp_path)
+        assert "This is the custom agent body" in derived.custom_agent_description
