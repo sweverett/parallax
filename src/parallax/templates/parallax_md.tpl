@@ -36,6 +36,8 @@ Each experiment should have:
 
 When ending a session or handing off to another agent:
 
+### Content
+
 - Problem statement (1-2 sentences)
 - What was investigated/attempted
 - Key findings (bulleted)
@@ -43,6 +45,17 @@ When ending a session or handing off to another agent:
 - Recommended next steps
 - Open questions
 - Relevant files/paths
+
+### Filename and storage
+
+- **Path:** `docs/sessions/<filename>`
+- **Filename:** `YYYY-MM-DD_<topic>.md`
+  - Date is the day the handoff is written, ISO format, prefix position.
+  - Topic is short kebab- or snake-case identifying the work (e.g. `merge-mode`, `pixel-conv-cleanup`).
+  - Date prefix ensures `ls docs/sessions/ | sort -r` returns chronological newest-first.
+- **Collisions:** prefer a more specific distinct topic over numeric suffixes. If two sessions on the same day genuinely cover the same topic, fall back to `_2`, `_3`, etc.
+- **Tracking:** by default, do not git-track handoffs. They are agent working notes, not project source-of-truth -- do not stage or commit them. Whether to `.gitignore` `docs/sessions/` is up to the project; the rule is "don't add by default," not "must be ignored."
+- **Trigger:** write a handoff at the end of any session that produced commits, unresolved decisions, or open questions for the next session. Skip only for trivial sessions with no continuity value.
 
 ## Agentic Workflow
 

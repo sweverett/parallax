@@ -109,6 +109,12 @@ class TestRenderParallaxMd:
         out = render_parallax_md(make_config())
         assert "${" not in out
 
+    def test_handoff_format_filename_storage(self) -> None:
+        out = render_parallax_md(make_config())
+        assert "Filename and storage" in out
+        assert "YYYY-MM-DD_<topic>.md" in out
+        assert "docs/sessions/" in out
+
 
 # ---------------------------------------------------------------------------
 # CONSTITUTION.md rendering
@@ -196,6 +202,12 @@ class TestRenderSkill:
         out = render_skill("session_start", make_config())
         assert "session-start" in out
         assert "handoffs" in out.lower()
+        assert "sort -r" in out
+
+    def test_handoff_render_contains_writer_rule(self) -> None:
+        out = render_skill("handoff", make_config())
+        assert "docs/sessions/" in out
+        assert "YYYY-MM-DD" in out
 
     def test_manuscript_review_render(self) -> None:
         out = render_skill("manuscript_review", make_config())

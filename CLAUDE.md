@@ -135,7 +135,8 @@ Boundary: instructions → CLAUDE.md. Learned knowledge not in CLAUDE.md → MEM
 Session summaries: `docs/sessions/YYYY-MM-DD_short-description.md`.
 - **New sessions:** read the 3 most recent files. Most recent is primary; older ones provide trajectory.
 - **Ending sessions:** write a summary before closing. Use existing format.
-- Multiple sessions per day: append `_2` suffix.
+- Multiple sessions per day: prefer distinct descriptive topics — collisions should be rare. Fallback `_2`, `_3` only when topics genuinely overlap.
+- If you find non-conforming filenames in `docs/sessions/`, flag and rename rather than tolerate.
 
 ### Semantic Memory (MEMORY.md)
 Claude Code's auto-loaded MEMORY.md. Updated during `/handoff` when stable patterns emerge.
