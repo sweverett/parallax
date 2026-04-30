@@ -8,10 +8,12 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from string import Template
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from parallax.core.config import ProjectConfig, TokenTier
+
+GuideMode = Literal["init", "sync"]
 
 
 # ---------------------------------------------------------------------------
@@ -331,6 +333,10 @@ _SKILL_NAMES = [
     "grill_me",
     "test_integrity",
     "doc_sync",
+    "diagnose",
+    "zoom_out",
+    "improve_architecture",
+    "ubiquitous_language",
 ]
 _HOOK_NAMES = ["test_guard.py", "lint_check.py", "stop_check.py"]
 
@@ -422,37 +428,81 @@ def _suffix_path(path: Path) -> Path:
     return path.with_suffix(f".parallax{path.suffix}")
 
 
-def classify_outputs(
-    config: ProjectConfig,
+def _classify(
+    content: dict[str, str],
     target: Path,
 ) -> tuple[dict[str, str], dict[str, str], list[str]]:
-    """Render all content and classify against existing target files.
+    """Classify a content dict against existing target files.
 
     Returns (new, conflicting, identical):
       - new: {rel_path: content} — files that don't exist in target
       - conflicting: {rel_path: content} — files that exist and differ
       - identical: [rel_path, ...] — files that exist and match
     """
-    all_content = _render_all_content(config)
     new: dict[str, str] = {}
     conflicting: dict[str, str] = {}
     identical: list[str] = []
 
-    for rel_path, content in all_content.items():
+    for rel_path, body in content.items():
         existing = target / rel_path
         if not existing.exists():
-            new[rel_path] = content
-        elif existing.read_text(encoding="utf-8") == content:
+            new[rel_path] = body
+        elif existing.read_text(encoding="utf-8") == body:
             identical.append(rel_path)
         else:
-            conflicting[rel_path] = content
+            conflicting[rel_path] = body
 
     return new, conflicting, identical
+
+
+def classify_outputs(
+    config: ProjectConfig,
+    target: Path,
+) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    """Classify all init-time content against existing target files."""
+    return _classify(_render_all_content(config), target)
+
+
+def _render_sync_content(config: ProjectConfig) -> dict[str, str]:
+    """Render the sync subset: everything except CLAUDE.md and PARALLAX.md.
+
+    These two files are user-synthesized after init; sync never touches them.
+    """
+    files = _render_all_content(config)
+    files.pop("CLAUDE.md", None)
+    files.pop("PARALLAX.md", None)
+    return files
+
+
+def classify_sync(
+    config: ProjectConfig,
+    target: Path,
+) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    """Classify sync-subset content against existing target files.
+
+    Used for `parallax sync --dry-run` and tests. Returns the same
+    (new, conflicting, identical) shape as classify_outputs.
+    """
+    return _classify(_render_sync_content(config), target)
 
 
 # ---------------------------------------------------------------------------
 # Merge guide
 # ---------------------------------------------------------------------------
+
+
+_GUIDE_INTROS: dict[GuideMode, str] = {
+    "init": (
+        "Parallax was initialized into a repo with existing configuration.\n"
+        "Your existing files were **not modified**. Parallax versions were written\n"
+        "with a `.parallax` suffix alongside originals that differ.\n"
+    ),
+    "sync": (
+        "`parallax sync` detected updates to template files you have customized.\n"
+        "Your existing files were **not modified**. Updated Parallax versions were\n"
+        "written with a `.parallax` suffix alongside originals that differ.\n"
+    ),
+}
 
 
 def _write_merge_guide(
@@ -461,6 +511,7 @@ def _write_merge_guide(
     *,
     new_paths: list[str] | None = None,
     identical_paths: list[str] | None = None,
+    mode: GuideMode = "init",
 ) -> Path:
     """Write .parallax/merge-guide.md describing the merge state."""
     guide_dir = target / ".parallax"
@@ -470,9 +521,7 @@ def _write_merge_guide(
     lines = [
         "# Parallax Merge Guide\n",
         "\n",
-        "Parallax was initialized into a repo with existing configuration.\n",
-        "Your existing files were **not modified**. Parallax versions were written\n",
-        "with a `.parallax` suffix alongside originals that differ.\n",
+        _GUIDE_INTROS[mode],
         "\n",
     ]
 
@@ -577,10 +626,19 @@ def render_project(
     return MergeResult(written=written)
 
 
-def _render_merge(config: ProjectConfig, target: Path) -> MergeResult:
-    """Merge-mode rendering: suffix conflicts, skip identical."""
-    new_content, conflicting_content, identical = classify_outputs(config, target)
+def _stage_and_apply(
+    new_content: dict[str, str],
+    conflicting_content: dict[str, str],
+    identical: list[str],
+    target: Path,
+    *,
+    mode: GuideMode,
+) -> MergeResult:
+    """Atomic write: stage new + suffixed in tempdir, move into target.
 
+    Writes a merge guide if there are conflicts. Used by both init merge mode
+    and sync.
+    """
     written: list[Path] = []
     suffixed: list[Path] = []
     skipped = [target / ip for ip in identical]
@@ -588,20 +646,17 @@ def _render_merge(config: ProjectConfig, target: Path) -> MergeResult:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
 
-        # Stage new files
         for rel_path, content in new_content.items():
             tmp_file = tmp / rel_path
             tmp_file.parent.mkdir(parents=True, exist_ok=True)
             tmp_file.write_text(content, encoding="utf-8")
 
-        # Stage conflicting files with suffix
         for rel_path, content in conflicting_content.items():
             suf = _suffix_path(Path(rel_path))
             tmp_file = tmp / str(suf)
             tmp_file.parent.mkdir(parents=True, exist_ok=True)
             tmp_file.write_text(content, encoding="utf-8")
 
-        # Move new files to target
         for rel_path in new_content:
             tmp_file = tmp / rel_path
             dest = target / rel_path
@@ -609,7 +664,6 @@ def _render_merge(config: ProjectConfig, target: Path) -> MergeResult:
             shutil.move(str(tmp_file), str(dest))
             written.append(dest)
 
-        # Move suffixed files to target
         for rel_path in conflicting_content:
             suf = _suffix_path(Path(rel_path))
             tmp_file = tmp / str(suf)
@@ -620,13 +674,38 @@ def _render_merge(config: ProjectConfig, target: Path) -> MergeResult:
 
     result = MergeResult(written=written, suffixed=suffixed, skipped=skipped)
 
-    # Write merge guide if there are suffixed files
     if suffixed:
         _write_merge_guide(
             target,
             result,
             new_paths=[str(p.relative_to(target)) for p in written],
             identical_paths=identical,
+            mode=mode,
         )
 
     return result
+
+
+def _render_merge(config: ProjectConfig, target: Path) -> MergeResult:
+    """Merge-mode rendering during init: suffix conflicts, skip identical."""
+    new_content, conflicting_content, identical = classify_outputs(config, target)
+    return _stage_and_apply(
+        new_content, conflicting_content, identical, target, mode="init"
+    )
+
+
+def render_sync(config: ProjectConfig, target: Path) -> MergeResult:
+    """Sync template updates into an already-initialized project.
+
+    Renders CONSTITUTION.md, skills, agents, hooks, and settings.json
+    (everything except CLAUDE.md and PARALLAX.md). Identical files are skipped,
+    new files are written, and user-modified files are written with a
+    `.parallax` suffix alongside the original. A merge guide is written when
+    there are conflicts.
+    """
+    new_content, conflicting_content, identical = _classify(
+        _render_sync_content(config), target
+    )
+    return _stage_and_apply(
+        new_content, conflicting_content, identical, target, mode="sync"
+    )

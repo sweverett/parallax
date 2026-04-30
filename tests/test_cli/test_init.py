@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from parallax.cli import _CACHE_REL, app
+from parallax.cli import _CACHE_REL, _CONFIG_REL, app
 from parallax.core.config import ProjectConfig
 
 runner = CliRunner()
@@ -159,6 +159,46 @@ class TestCacheFlow:
             )
         assert result.exit_code == 0
         mock_interview.assert_called_once()
+
+
+class TestConfigSnapshot:
+    """Persistent .parallax/config.json snapshot for parallax sync."""
+
+    def test_config_json_written_on_success(self, tmp_path: Path) -> None:
+        cfg = _dummy_config(project_name="snapshot-test", token_tier="5x")
+        config_path = tmp_path / _CONFIG_REL
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(app, ["init", "-t", str(tmp_path), "--skip-refine"])
+        assert result.exit_code == 0
+        assert config_path.exists()
+        loaded = ProjectConfig.from_json(config_path)
+        assert loaded.project_name == "snapshot-test"
+        assert loaded.token_tier == "5x"
+
+    def test_config_json_not_written_on_refinement_failure(
+        self, tmp_path: Path
+    ) -> None:
+        cfg = _dummy_config()
+        config_path = tmp_path / _CONFIG_REL
+        with (
+            patch("parallax.cli.run_interview", return_value=cfg),
+            patch("parallax.cli.run_refinement", return_value=False),
+        ):
+            result = runner.invoke(app, ["init", "-t", str(tmp_path)])
+        assert result.exit_code == 0
+        # Snapshot only written on full success — aligned with cache lifecycle
+        assert not config_path.exists()
+
+    def test_config_json_survives_keep_cache(self, tmp_path: Path) -> None:
+        """--keep-cache preserves the cache; config.json is also written."""
+        cfg = _dummy_config()
+        config_path = tmp_path / _CONFIG_REL
+        with patch("parallax.cli.run_interview", return_value=cfg):
+            result = runner.invoke(
+                app, ["init", "-t", str(tmp_path), "--skip-refine", "--keep-cache"]
+            )
+        assert result.exit_code == 0
+        assert config_path.exists()
 
 
 class TestMergeMode:

@@ -18,6 +18,10 @@ Invoked as `/skill-name` in Claude Code.
 | `/grill-me` | Stress-test a plan or design through relentless decision-tree interrogation. |
 | `/manuscript-review` | Peer review critique of LaTeX papers or Beamer presentations (read-only). |
 | `/latex-guide` | LaTeX/BibTeX troubleshooting reference: error patterns, fixes, Beamer tips. |
+| `/diagnose` | Disciplined bug/regression diagnosis: feedback loop -> reproduce -> hypothesise (3-5 falsifiable) -> instrument -> fix -> regression test. |
+| `/zoom-out` | Map an unfamiliar area of code: role, callers, dependencies, surprises. User-invoked only. |
+| `/improve-architecture` | Architecture review: surface deepening opportunities, walk design tree, output a Parallax plan. User-invoked, science-aware. |
+| `/ubiquitous-language` | Extract domain terminology + units into `UBIQUITOUS_LANGUAGE.md`. Flags ambiguities and proposes canonical terms. User-invoked. |
 
 ## Agents
 

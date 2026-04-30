@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import re
 import signal
 from pathlib import Path
@@ -16,8 +17,10 @@ from parallax.core.refiner import run_refinement
 from parallax.core.renderer import (
     _MODEL_MAP,
     classify_outputs,
+    classify_sync,
     model_for_agent,
     render_project,
+    render_sync,
 )
 
 if TYPE_CHECKING:
@@ -38,6 +41,7 @@ app.add_typer(config_app, name="config")
 
 
 _CACHE_REL = Path(".parallax") / "cache.json"
+_CONFIG_REL = Path(".parallax") / "config.json"
 
 
 @app.command()
@@ -182,10 +186,16 @@ def _init_impl(
             "read CLAUDE.md, PARALLAX.md, and CONSTITUTION.md for refinement."
         )
 
+    # Persist config snapshot for future `parallax sync`. Written even if the
+    # cache is being kept — they're separate artifacts (cache = resumable
+    # interview state, config = permanent project config).
+    if refine_ok:
+        config.to_json(target / _CONFIG_REL)
+
     # Only delete cache if everything succeeded — preserve for retry on failure
     if refine_ok and not keep_cache and cache_path.exists():
         cache_path.unlink()
-        # Remove .parallax dir if now empty
+        # Remove .parallax dir if now empty (config.json keeps it alive going forward)
         with contextlib.suppress(OSError):
             cache_path.parent.rmdir()
 
@@ -225,6 +235,85 @@ def _maybe_resume_cache(cache_path: Path) -> ProjectConfig | None:
     # User declined — delete stale cache
     cache_path.unlink()
     return None
+
+
+@app.command()
+def sync(
+    target_dir: Annotated[
+        Path | None,
+        typer.Option("--target-dir", "-t", help="Project directory."),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show what would change without writing files."),
+    ] = False,
+) -> None:
+    """Push template updates (CONSTITUTION, skills, agents, hooks) into a project.
+
+    Uses the persisted .parallax/config.json from the most recent init. Files
+    that match the current template exactly are skipped; new files are written;
+    user-modified files are written with a .parallax suffix and a merge guide
+    is dropped at .parallax/merge-guide.md. Run `parallax refine` afterward to
+    merge the suffixed files. Never touches CLAUDE.md or PARALLAX.md.
+    """
+    target = (target_dir or Path.cwd()).resolve()
+
+    if not (target / "PARALLAX.md").exists():
+        typer.echo(
+            "Error: not a Parallax-managed project (PARALLAX.md not found).",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    config_path = target / _CONFIG_REL
+    if not config_path.exists():
+        typer.echo(
+            "Error: no .parallax/config.json found. This project predates the "
+            "config snapshot.\nRe-run `parallax init -f` once to capture state, "
+            "then `parallax sync`.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    config = ProjectConfig.from_json(config_path)
+
+    if dry_run:
+        new, conflicting, identical = classify_sync(config, target)
+        typer.echo("\nparallax sync (dry-run):")
+        typer.echo(
+            f"  {len(new)} new | {len(conflicting)} updated (would suffix) | "
+            f"{len(identical)} identical (skip)"
+        )
+        if new:
+            typer.echo("\n  New:")
+            for rel in sorted(new):
+                typer.echo(f"    {rel}")
+        if conflicting:
+            typer.echo("\n  Updated (would write as .parallax suffix):")
+            for rel in sorted(conflicting):
+                typer.echo(f"    {rel}")
+        return
+
+    result = render_sync(config, target)
+
+    typer.echo("\nparallax sync complete:")
+    if result.written:
+        typer.echo(f"  {len(result.written)} new file(s):")
+        for path in result.written:
+            typer.echo(f"    {path.relative_to(target)}")
+    if result.suffixed:
+        typer.echo(f"  {len(result.suffixed)} updated file(s) (suffixed):")
+        for path in result.suffixed:
+            typer.echo(f"    {path.relative_to(target)}")
+    if result.skipped:
+        typer.echo(f"  {len(result.skipped)} identical file(s) skipped")
+
+    if result.suffixed:
+        guide = target / ".parallax" / "merge-guide.md"
+        typer.echo(f"\nMerge guide: {guide}")
+        typer.echo("Run `parallax refine` to launch merge assistance.")
+    elif not result.written:
+        typer.echo("\nAll files up to date.")
 
 
 @app.command()
@@ -316,6 +405,20 @@ def _set_token_tier(target: Path, tier: str) -> None:
         typer.echo("No agent files needed updating.")
     else:
         typer.echo(f"Updated {updated} agent file(s) to tier '{tier}'.")
+
+    # Keep persistent config snapshot in sync with rendered agent files.
+    config_path = target / _CONFIG_REL
+    if config_path.exists():
+        config = ProjectConfig.from_json(config_path)
+        if config.token_tier != tier:
+            new_config = dataclasses.replace(config, token_tier=tier)  # type: ignore[arg-type]
+            new_config.to_json(config_path)
+            typer.echo(f"Updated {_CONFIG_REL} (token_tier -> {tier}).")
+    else:
+        typer.echo(
+            f"Note: no {_CONFIG_REL} found. `parallax sync` will not work until "
+            "you re-run `parallax init -f` to capture the current config.",
+        )
 
 
 _REFINEMENT_START = "<!-- PARALLAX REFINEMENT:"

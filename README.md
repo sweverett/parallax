@@ -100,13 +100,20 @@ parallax refine --done               # strip refinement comment blocks
 
 # Post-init config changes
 parallax config set token-tier 5x    # update agent model selection
+
+# Sync template updates into an existing project
+parallax sync                        # pull latest CONSTITUTION/skills/agents/hooks
+parallax sync -t /path/to/project    # target directory
+parallax sync --dry-run              # show what would change without writing
 ```
+
+`parallax sync` updates Parallax-managed template files (CONSTITUTION.md, all skills, agents, hooks, settings.json) without touching your CLAUDE.md or PARALLAX.md. User-modified files are written with a `.parallax` suffix; run `parallax refine` afterward to merge.
 
 `parallax init` runs a structured interview generating:
 - **CLAUDE.md** -- project-specific AI agent guide
 - **PARALLAX.md** -- scientific workflow rules
 - **CONSTITUTION.md** -- core scientific principles
-- **.claude/skills/** -- hypothesis, handoff, audit, experiment, session-start, manuscript-review, latex-guide, doc-sync skills
+- **.claude/skills/** -- hypothesis, handoff, audit, experiment, session-start, manuscript-review, latex-guide, doc-sync, diagnose, zoom-out, improve-architecture, ubiquitous-language skills
 - **.claude/agents/** -- hypothesis-explorer, experiment-runner, literature-reviewer, result-validator, paper-writer, presentation-writer, manuscript-reviewer agents
 - **.claude/hooks/** -- test guard, lint check, stop check enforcement scripts
 - **.claude/settings.json** -- hook configuration referencing scripts above
@@ -129,8 +136,9 @@ What exists:
 - `parallax refine`: interactive refinement session (auto-detects merge guide for merge assistance)
 - `parallax refine --done`: strip refinement comment blocks
 - `parallax config`: post-init configuration changes (token tier)
+- `parallax sync`: pull latest CONSTITUTION/skills/agents/hooks into an existing project; suffix user-edited files for merge via `parallax refine`
 - Hook enforcement: test guard (blocks test weakening), lint check (ruff feedback), stop check (uncommitted work reminder)
-- Full skill definitions: /hypothesis, /handoff, /audit, /experiment, /session-start, /manuscript-review, /latex-guide, /doc-sync
+- Full skill definitions: /hypothesis, /handoff, /audit, /experiment, /session-start, /manuscript-review, /latex-guide, /doc-sync, /diagnose, /zoom-out, /improve-architecture, /ubiquitous-language
 - Agent definitions: hypothesis-explorer, experiment-runner, literature-reviewer, result-validator, paper-writer, presentation-writer, manuscript-reviewer
 - Token tier system: model selection per agent based on usage tier (pro/5x/20x/api)
 - CI pipeline (ruff, mypy --strict, pytest)
@@ -138,7 +146,7 @@ What exists:
 
 What's next:
 - Layer 2: SQLite hypothesis lifecycle, git worktrees
-- Template versioning / migration
+- Template versioning / migration (basic flow shipped via `parallax sync`)
 - Semantic version validation in CI
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full backlog.

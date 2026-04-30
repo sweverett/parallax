@@ -15,7 +15,7 @@ Implemented in template with hypothesis protocol, experiment manifest, handoff f
 `parallax init` interview implemented: 2-phase (core + detailed), editor-based multi-line input, defaults, validation.
 
 ### 3. Template versioning/migration
-When Parallax ships new templates, how do existing projects upgrade? Merge? Override? Side-by-side? Need a migration strategy before users depend on generated configs.
+Basic flow shipped: `parallax sync` pulls the latest CONSTITUTION/skills/agents/hooks into an existing project, reusing init's merge-mode semantics (suffix user-edited files as `.parallax.ext`, write merge guide, refine to merge). `.parallax/config.json` snapshot persists project config across syncs. Still open: semantic versioning of templates so sync can show changelogs / require explicit upgrades; cross-version migration for breaking template changes.
 
 ### 4. Data management
 DVC/git-lfs/provenance unspecified for data-heavy science. Layer 3 mentions it but no concrete design. Critical for any project with non-trivial datasets.

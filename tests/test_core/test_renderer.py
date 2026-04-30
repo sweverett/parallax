@@ -5,9 +5,11 @@ from pathlib import Path
 import pytest
 
 from parallax.core.renderer import (
+    _render_sync_content,
     _suffix_path,
     check_conflicts,
     classify_outputs,
+    classify_sync,
     model_for_agent,
     render_agent,
     render_claude_md,
@@ -17,6 +19,7 @@ from parallax.core.renderer import (
     render_project,
     render_settings_json,
     render_skill,
+    render_sync,
 )
 from tests.conftest import make_config
 
@@ -634,5 +637,146 @@ class TestMergeMode:
 
     def test_merge_no_guide_when_no_conflicts(self, tmp_path: Path) -> None:
         result = render_project(make_config(), tmp_path, merge=True)
+        assert len(result.suffixed) == 0
+        assert not (tmp_path / ".parallax" / "merge-guide.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# New ported skills
+# ---------------------------------------------------------------------------
+
+
+class TestPortedSkills:
+    @pytest.mark.parametrize(
+        "name",
+        ["diagnose", "zoom_out", "improve_architecture", "ubiquitous_language"],
+    )
+    def test_skill_renders(self, name: str) -> None:
+        out = render_skill(name, make_config())
+        assert "${" not in out  # no unsubstituted vars
+        assert out.lstrip().startswith("<!-- Adapted")  # attribution preserved
+
+    def test_diagnose_cross_references_hypothesis(self) -> None:
+        out = render_skill("diagnose", make_config())
+        assert "/hypothesis" in out
+        assert "/test-integrity" in out
+
+    def test_zoom_out_disabled_invocation(self) -> None:
+        out = render_skill("zoom_out", make_config())
+        assert "disable-model-invocation: true" in out
+
+    def test_improve_architecture_disabled_invocation(self) -> None:
+        out = render_skill("improve_architecture", make_config())
+        assert "disable-model-invocation: true" in out
+        # Science-code preamble warning is the load-bearing local adaptation
+        assert "scientific code" in out
+
+    def test_ubiquitous_language_disabled_invocation(self) -> None:
+        out = render_skill("ubiquitous_language", make_config())
+        assert "disable-model-invocation: true" in out
+        # Output filename is the load-bearing decision
+        assert "UBIQUITOUS_LANGUAGE.md" in out
+
+
+# ---------------------------------------------------------------------------
+# Sync content rendering
+# ---------------------------------------------------------------------------
+
+
+class TestRenderSyncContent:
+    def test_excludes_claude_md(self) -> None:
+        files = _render_sync_content(make_config())
+        assert "CLAUDE.md" not in files
+
+    def test_excludes_parallax_md(self) -> None:
+        files = _render_sync_content(make_config())
+        assert "PARALLAX.md" not in files
+
+    def test_includes_constitution(self) -> None:
+        files = _render_sync_content(make_config())
+        assert "CONSTITUTION.md" in files
+
+    def test_includes_skills(self) -> None:
+        files = _render_sync_content(make_config())
+        skill_keys = [k for k in files if k.startswith(".claude/skills/")]
+        assert len(skill_keys) > 0
+
+    def test_includes_agents(self) -> None:
+        files = _render_sync_content(make_config())
+        agent_keys = [k for k in files if k.startswith(".claude/agents/")]
+        assert len(agent_keys) > 0
+
+    def test_includes_hooks_and_settings(self) -> None:
+        files = _render_sync_content(make_config())
+        assert ".claude/settings.json" in files
+        hook_keys = [k for k in files if k.startswith(".claude/hooks/")]
+        assert len(hook_keys) > 0
+
+
+class TestClassifySync:
+    def test_all_new_in_empty_target(self, tmp_path: Path) -> None:
+        new, conflicting, identical = classify_sync(make_config(), tmp_path)
+        assert len(new) > 0
+        assert "CLAUDE.md" not in new  # never in sync output
+        assert "PARALLAX.md" not in new
+        assert len(conflicting) == 0
+        assert len(identical) == 0
+
+    def test_conflict_on_edited_file(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        # Pre-create CONSTITUTION.md with different content
+        (tmp_path / "CONSTITUTION.md").write_text("# user-edited")
+        new, conflicting, identical = classify_sync(cfg, tmp_path)
+        assert "CONSTITUTION.md" in conflicting
+
+    def test_identical_when_matches(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        (tmp_path / "CONSTITUTION.md").write_text(render_constitution_md(cfg))
+        new, conflicting, identical = classify_sync(cfg, tmp_path)
+        assert "CONSTITUTION.md" in identical
+
+
+class TestRenderSync:
+    def test_writes_new_files(self, tmp_path: Path) -> None:
+        result = render_sync(make_config(), tmp_path)
+        # CONSTITUTION.md is in sync subset and should be written
+        names = {p.name for p in result.written}
+        assert "CONSTITUTION.md" in names
+        assert (tmp_path / "CONSTITUTION.md").exists()
+
+    def test_does_not_write_claude_md(self, tmp_path: Path) -> None:
+        render_sync(make_config(), tmp_path)
+        assert not (tmp_path / "CLAUDE.md").exists()
+
+    def test_does_not_write_parallax_md(self, tmp_path: Path) -> None:
+        render_sync(make_config(), tmp_path)
+        assert not (tmp_path / "PARALLAX.md").exists()
+
+    def test_suffixes_conflicting_file(self, tmp_path: Path) -> None:
+        (tmp_path / "CONSTITUTION.md").write_text("# user-edited")
+        result = render_sync(make_config(), tmp_path)
+        suffixed_names = {p.name for p in result.suffixed}
+        assert "CONSTITUTION.parallax.md" in suffixed_names
+        # Original is untouched
+        assert (tmp_path / "CONSTITUTION.md").read_text() == "# user-edited"
+
+    def test_skips_identical(self, tmp_path: Path) -> None:
+        cfg = make_config()
+        (tmp_path / "CONSTITUTION.md").write_text(render_constitution_md(cfg))
+        result = render_sync(cfg, tmp_path)
+        skipped_names = {p.name for p in result.skipped}
+        assert "CONSTITUTION.md" in skipped_names
+        assert not (tmp_path / "CONSTITUTION.parallax.md").exists()
+
+    def test_writes_merge_guide_with_sync_intro(self, tmp_path: Path) -> None:
+        (tmp_path / "CONSTITUTION.md").write_text("# user-edited")
+        render_sync(make_config(), tmp_path)
+        guide = tmp_path / ".parallax" / "merge-guide.md"
+        assert guide.exists()
+        text = guide.read_text()
+        assert "parallax sync" in text  # sync-mode intro line
+
+    def test_no_guide_when_no_conflicts(self, tmp_path: Path) -> None:
+        result = render_sync(make_config(), tmp_path)
         assert len(result.suffixed) == 0
         assert not (tmp_path / ".parallax" / "merge-guide.md").exists()
